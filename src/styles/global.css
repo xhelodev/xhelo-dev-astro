@@ -3,33 +3,65 @@
 
 /* ─── Paleta Notion-style ─── */
 :root {
-  --bg: #ffffff;
-  --bg-soft: #f7f7f5;
-  --fg: #37352f;
-  --fg-muted: #6b6b6b;
-  --fg-faint: #9ca3af;
-  --border: #e3e2e0;
-  --border-strong: #d1d1d1;
+  --bg: #edeae6;
+  --bg-soft: #e4e0db;
+  --fg: #3d3a36;
+  --fg-muted: #6e6a64;
+  --fg-faint: #9b958d;
+  --border: #d9d4ce;
+  --border-strong: #c4bfb8;
   --accent: #2563eb;
   --accent-hover: #1d4ed8;
-  --badge-bg: #f1f1ef;
-  --callout-bg: #f7f7f5;
-  --callout-border: #e3e2e0;
+  --badge-bg: #e0dbd4;
+  --callout-bg: #e4e0db;
+  --callout-border: #d9d4ce;
+  --callout-accent: #2563eb;
+  --status-dot: #22c55e;
+
+  /* Badge category colors (light) */
+  --badge-backend-bg: #d8eedd;
+  --badge-backend-fg: #15803d;
+  --badge-frontend-bg: #fce8d0;
+  --badge-frontend-fg: #c2410c;
+  --badge-web3-bg: #e8e0ff;
+  --badge-web3-fg: #6d28d9;
+  --badge-infra-bg: #d4e4ff;
+  --badge-infra-fg: #1d4ed8;
+  --badge-db-bg: #d0f0f5;
+  --badge-db-fg: #0e7490;
+  --badge-emerging-bg: #fcebd0;
+  --badge-emerging-fg: #b45309;
 }
 
 html.dark-mode {
-  --bg: #0a0a0a;
-  --bg-soft: #141414;
-  --fg: #ededed;
-  --fg-muted: #a1a1a1;
-  --fg-faint: #737373;
-  --border: #262626;
-  --border-strong: #404040;
-  --accent: #60a5fa;
-  --accent-hover: #93c5fd;
-  --badge-bg: #1c1c1c;
-  --callout-bg: #141414;
-  --callout-border: #262626;
+  --bg: #242428;
+  --bg-soft: #2a2a2e;
+  --fg: #e2e0dc;
+  --fg-muted: #9c9993;
+  --fg-faint: #6e6b64;
+  --border: #35353a;
+  --border-strong: #4a4a50;
+  --accent: #7aadff;
+  --accent-hover: #a3c8ff;
+  --badge-bg: #2f2f34;
+  --callout-bg: #2a2a2e;
+  --callout-border: #35353a;
+  --callout-accent: #7aadff;
+  --status-dot: #6ee7b7;
+
+  /* Badge category colors (dark) */
+  --badge-backend-bg: rgba(22, 163, 74, 0.20);
+  --badge-backend-fg: #6ee7b7;
+  --badge-frontend-bg: rgba(234, 88, 12, 0.20);
+  --badge-frontend-fg: #fdba74;
+  --badge-web3-bg: rgba(124, 58, 237, 0.20);
+  --badge-web3-fg: #c4b5fd;
+  --badge-infra-bg: rgba(37, 99, 235, 0.20);
+  --badge-infra-fg: #93c5fd;
+  --badge-db-bg: rgba(8, 145, 178, 0.20);
+  --badge-db-fg: #67e8f9;
+  --badge-emerging-bg: rgba(217, 119, 6, 0.20);
+  --badge-emerging-fg: #fcd34d;
 }
 
 /* ─── Base ─── */
@@ -92,6 +124,59 @@ a:hover {
   white-space: nowrap;
 }
 
+.badge-backend {
+  background: var(--badge-backend-bg);
+  color: var(--badge-backend-fg);
+  border-color: transparent;
+}
+
+.badge-frontend {
+  background: var(--badge-frontend-bg);
+  color: var(--badge-frontend-fg);
+  border-color: transparent;
+}
+
+.badge-web3 {
+  background: var(--badge-web3-bg);
+  color: var(--badge-web3-fg);
+  border-color: transparent;
+}
+
+.badge-infra {
+  background: var(--badge-infra-bg);
+  color: var(--badge-infra-fg);
+  border-color: transparent;
+}
+
+.badge-db {
+  background: var(--badge-db-bg);
+  color: var(--badge-db-fg);
+  border-color: transparent;
+}
+
+.badge-emerging {
+  background: var(--badge-emerging-bg);
+  color: var(--badge-emerging-fg);
+  border-color: transparent;
+}
+
+/* ─── Hero Gradient ─── */
+.hero-glow {
+  position: absolute;
+  top: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(ellipse at center, rgba(37, 99, 235, 0.08) 0%, rgba(124, 58, 237, 0.06) 40%, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+html.dark-mode .hero-glow {
+  background: radial-gradient(ellipse at center, rgba(37, 99, 235, 0.12) 0%, rgba(124, 58, 237, 0.08) 40%, transparent 70%);
+}
+
 /* ─── Separadores ─── */
 .divider {
   border: 0;
@@ -103,8 +188,34 @@ a:hover {
 .callout {
   background: var(--callout-bg);
   border: 1px solid var(--callout-border);
+  border-left: 3px solid var(--callout-accent);
   border-radius: 0.5rem;
   padding: 1rem 1.25rem;
+}
+
+/* ─── Status Dot ─── */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-dot);
+  display: inline-block;
+  position: relative;
+}
+
+.status-dot::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: var(--status-dot);
+  opacity: 0.4;
+  animation: pulse-dot 2s ease-out infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(2.5); opacity: 0; }
 }
 
 /* ─── Listas ─── */
