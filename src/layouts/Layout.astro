@@ -28,7 +28,7 @@ import "@fontsource/inter";
 >
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Marcelo Aguirre — Full Stack Developer</title>
     <meta name="description" content="Senior Fullstack Developer · TypeScript Specialist · Backend-Oriented. Specialized in robust end-to-end architectures, Web3, and AI." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -49,24 +49,24 @@ import "@fontsource/inter";
 
   <body class="min-h-screen antialiased">
     <!-- Top bar: language + theme -->
-    <div class="max-w-2xl mx-auto px-6 pt-6 flex items-center justify-end gap-4 text-sm">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 pt-6 flex items-center justify-end gap-4 text-sm">
       <div class="flex items-center gap-1">
         <button
           @click="language = 'es'"
-          class="px-1.5 py-0.5 rounded transition-colors"
+          class="inline-flex items-center justify-center min-h-11 min-w-11 rounded transition-colors"
           :class="language === 'es' ? 'font-semibold text-[var(--fg)]' : 'text-[var(--fg-faint)] hover:text-[var(--fg-muted)]'"
         >ES</button>
         <span class="text-[var(--border-strong)]">/</span>
         <button
           @click="language = 'en'"
-          class="px-1.5 py-0.5 rounded transition-colors"
+          class="inline-flex items-center justify-center min-h-11 min-w-11 rounded transition-colors"
           :class="language === 'en' ? 'font-semibold text-[var(--fg)]' : 'text-[var(--fg-faint)] hover:text-[var(--fg-muted)]'"
         >EN</button>
       </div>
 
       <button
         @click="theme = theme === 'dark' ? 'light' : 'dark'"
-        class="p-1.5 rounded-md hover:bg-[var(--badge-bg)] text-[var(--fg-muted)] transition-colors"
+        class="inline-flex items-center justify-center min-h-11 min-w-11 rounded-md hover:bg-[var(--badge-bg)] text-[var(--fg-muted)] transition-colors"
         aria-label="Toggle theme"
       >
         <svg x-cloak x-show="theme === 'dark'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
@@ -74,11 +74,11 @@ import "@fontsource/inter";
       </button>
     </div>
 
-    <main class="max-w-2xl mx-auto px-6 pb-20">
+    <main class="max-w-2xl mx-auto px-4 sm:px-6 pb-20">
       <slot />
     </main>
 
-    <footer class="max-w-2xl mx-auto px-6 pb-10 text-center">
+    <footer class="max-w-2xl mx-auto px-4 sm:px-6 pb-10 text-center">
       <p class="text-xs text-[var(--fg-faint)]">
         <span x-show="language === 'es'">Built with passion for code, cryptography, and decentralized systems.</span>
         <span x-show="language === 'en'">Built with passion for code, cryptography, and decentralized systems.</span>

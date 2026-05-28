@@ -71,6 +71,7 @@ html, body {
   font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
 }
 
 html {
@@ -277,6 +278,21 @@ html.dark-mode ::selection {
 
 /* ─── Responsive helpers ─── */
 @media (max-width: 640px) {
+  .hero-glow {
+    width: min(100vw, 400px);
+    height: 280px;
+    top: -80px;
+  }
+
+  .badge {
+    white-space: normal;
+    text-align: center;
+  }
+
+  .callout {
+    padding: 1rem;
+  }
+
   .divider {
     margin: 2rem 0;
   }
