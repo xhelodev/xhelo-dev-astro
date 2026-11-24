@@ -1,0 +1,218 @@
+---
+// LofiPlayer — vanilla Astro island (S8). Framework-free markup here; the
+// bundled <script> owns state. Audio modules load lazily on first interaction.
+---
+
+<section id="lofi-player" class="mb-10" aria-label="Generador de música lofi">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <div>
+      <h2 class="text-xl font-semibold tracking-tight">Lofi Generator</h2>
+      <p id="lofi-readout" class="text-[var(--fg-muted)] text-sm mt-1">generando…</p>
+    </div>
+    <span
+      id="lofi-status"
+      class="text-xs px-2 py-1 rounded-full border border-[var(--border)] text-[var(--fg-faint)] shrink-0"
+      role="status"
+    >detenida</span>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-2 mb-4">
+    <code id="lofi-seed" class="text-sm px-3 py-1.5 rounded-lg bg-[var(--badge-bg)] text-[var(--fg)]">seed</code>
+    <button
+      id="lofi-copy"
+      type="button"
+      class="text-sm px-3 py-1.5 rounded-lg border border-[var(--border-strong)] text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors"
+    >Copiar link</button>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3 mb-5">
+    <button
+      id="lofi-play"
+      type="button"
+      class="px-5 py-2.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] font-medium hover:bg-[var(--accent-hover)] transition-colors min-h-11"
+    >Reproducir</button>
+    <button
+      id="lofi-regen"
+      type="button"
+      class="px-4 py-2.5 rounded-lg border border-[var(--border-strong)] text-[var(--fg)] hover:bg-[var(--badge-bg)] transition-colors min-h-11"
+    >Nueva pista</button>
+    <button
+      id="lofi-export"
+      type="button"
+      class="px-4 py-2.5 rounded-lg border border-[var(--border-strong)] text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11"
+      title="Exporta la composición (notas, swing, velocidades), no el audio sintetizado"
+    >Descargar .mid</button>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-[var(--fg-muted)]">
+    <button id="lofi-crackle" type="button" aria-pressed="true" class="hover:text-[var(--fg)] transition-colors">
+      <span aria-hidden="true">vinilo&nbsp;</span><span id="lofi-crackle-state">on</span>
+    </button>
+    <button id="lofi-wobble" type="button" aria-pressed="true" class="hover:text-[var(--fg)] transition-colors">
+      <span aria-hidden="true">cinta&nbsp;</span><span id="lofi-wobble-state">on</span>
+    </button>
+    <label class="flex items-center gap-2">
+      <span>volumen</span>
+      <input
+        id="lofi-volume"
+        type="range"
+        min="0"
+        max="100"
+        value="80"
+        class="accent-[var(--accent)] w-28"
+        aria-label="Volumen"
+      />
+    </label>
+  </div>
+</section>
+
+<script>
+  import { DEFAULT_FX, generateLofiTrack } from "../lib/lofi/generator";
+  import type { FxSettings, LofiTrack } from "../lib/lofi/types";
+  import type { LofiEngine } from "../lib/lofi/audio-engine";
+
+  const SEED_WORDS = ["rainy", "midnight", "velvet", "dusty", "cafe", "tape", "amber", "navy", "neon", "paper"];
+
+  function randomSeed(): string {
+    const word = SEED_WORDS[Math.floor(Math.random() * SEED_WORDS.length)];
+    const n = Math.floor(Math.random() * 1000);
+    return `${word}-${n}`;
+  }
+
+  function requireEl<T extends HTMLElement>(id: string): T {
+    const el = document.getElementById(id);
+    if (!el) throw new Error(`missing element #${id}`);
+    return el as T;
+  }
+
+  const els = {
+    play: requireEl<HTMLButtonElement>("lofi-play"),
+    regen: requireEl<HTMLButtonElement>("lofi-regen"),
+    exportBtn: requireEl<HTMLButtonElement>("lofi-export"),
+    copy: requireEl<HTMLButtonElement>("lofi-copy"),
+    seed: requireEl<HTMLElement>("lofi-seed"),
+    readout: requireEl<HTMLElement>("lofi-readout"),
+    status: requireEl<HTMLElement>("lofi-status"),
+    crackle: requireEl<HTMLButtonElement>("lofi-crackle"),
+    crackleState: requireEl<HTMLElement>("lofi-crackle-state"),
+    wobble: requireEl<HTMLButtonElement>("lofi-wobble"),
+    wobbleState: requireEl<HTMLElement>("lofi-wobble-state"),
+    volume: requireEl<HTMLInputElement>("lofi-volume"),
+  };
+
+  let ctx: AudioContext | null = null;
+  let engine: LofiEngine | null = null;
+  let fx: FxSettings = { ...DEFAULT_FX };
+  let playing = false;
+
+  const initialSeed = new URLSearchParams(window.location.search).get("seed");
+  let seed = initialSeed && initialSeed.trim().length > 0 ? initialSeed.trim() : randomSeed();
+  let track: LofiTrack = generateLofiTrack(seed);
+
+  function renderTrackInfo(): void {
+    els.readout.textContent = `${track.bpm} BPM · ${track.key} · swing ${Math.round(track.swing * 100)}%`;
+    els.seed.textContent = track.seed;
+  }
+
+  function syncSeedUrl(): void {
+    const url = new URL(window.location.href);
+    url.searchParams.set("seed", track.seed);
+    window.history.replaceState(null, "", url);
+  }
+
+  function updatePlayingUI(): void {
+    els.play.textContent = playing ? "Pausar" : "Reproducir";
+    els.status.textContent = playing ? "sonando" : "detenida";
+  }
+
+  function updateFxUI(): void {
+    els.crackle.setAttribute("aria-pressed", String(fx.crackle));
+    els.crackleState.textContent = fx.crackle ? "on" : "off";
+    els.wobble.setAttribute("aria-pressed", String(fx.wobble));
+    els.wobbleState.textContent = fx.wobble ? "on" : "off";
+  }
+
+  els.play.addEventListener("click", () => {
+    void (async () => {
+      // iOS Safari (S8): create and resume the AudioContext SYNCHRONOUSLY
+      // inside the gesture handler, BEFORE any await import(...).
+      if (!ctx) {
+        const Ctor =
+          window.AudioContext ??
+          (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!Ctor) {
+          els.status.textContent = "audio no soportado";
+          return;
+        }
+        ctx = new Ctor();
+      }
+      if (ctx.state === "suspended") void ctx.resume();
+
+      if (!engine) {
+        const { createLofiEngine } = await import("../lib/lofi/audio-engine");
+        engine = createLofiEngine(ctx, track, fx);
+        engine.onStateChange = (isPlaying) => {
+          playing = isPlaying;
+          updatePlayingUI();
+        };
+      }
+      if (playing) {
+        engine.pause();
+      } else {
+        engine.play();
+      }
+    })();
+  });
+
+  els.regen.addEventListener("click", () => {
+    seed = randomSeed();
+    track = generateLofiTrack(seed);
+    syncSeedUrl();
+    renderTrackInfo();
+    engine?.setTrack(track);
+  });
+
+  els.exportBtn.addEventListener("click", () => {
+    void (async () => {
+      const { downloadMidi } = await import("../lib/lofi/midi-export");
+      downloadMidi(track);
+    })();
+  });
+
+  els.copy.addEventListener("click", () => {
+    void navigator.clipboard?.writeText(window.location.href).then(() => {
+      els.copy.textContent = "¡Copiado!";
+      window.setTimeout(() => (els.copy.textContent = "Copiar link"), 1500);
+    });
+  });
+
+  els.crackle.addEventListener("click", () => {
+    fx = { ...fx, crackle: !fx.crackle };
+    updateFxUI();
+    engine?.setFx(fx);
+  });
+
+  els.wobble.addEventListener("click", () => {
+    fx = { ...fx, wobble: !fx.wobble };
+    updateFxUI();
+    engine?.setFx(fx);
+  });
+
+  els.volume.addEventListener("input", () => {
+    fx = { ...fx, volume: Number(els.volume.value) / 100 };
+    engine?.setFx(fx);
+  });
+
+  // ClientRouter (View Transitions) is active site-wide: stop cleanly on
+  // navigation away from this page (S8).
+  document.addEventListener("astro:before-swap", () => {
+    engine?.stop();
+  });
+
+  renderTrackInfo();
+  updateFxUI();
+  updatePlayingUI();
+  if (!initialSeed || initialSeed.trim().length === 0) {
+    syncSeedUrl();
+  }
+</script>
