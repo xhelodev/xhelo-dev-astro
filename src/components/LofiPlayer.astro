@@ -7,8 +7,9 @@
 <aside
   id="lofi-player"
   aria-label="Reproductor de música"
-  class="sticky top-0 z-40 w-full border-b-2 border-[var(--border)] bg-[var(--bg-soft)]"
+  class="sticky top-0 z-40 w-full border-b-2 border-[var(--border-strong)] bg-[var(--bg-soft)] relative"
 >
+  <div id="lofi-progress" class="lofi-progress" aria-hidden="true"></div>
   <div class="max-w-2xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-3">
     <div class="flex items-center gap-3 min-w-0">
       <!-- Pixel equalizer -->
@@ -18,14 +19,17 @@
         <span class="eq-bar"></span>
         <span class="eq-bar"></span>
       </div>
-      <span class="font-pixel-label text-[10px] text-[var(--accent)] shrink-0 hidden sm:inline">8-BIT RADIO</span>
+      <span
+        class="font-pixel-label text-xs text-[var(--accent)] shrink-0 hidden sm:inline"
+        title="Sintetizador Web Audio en tiempo real · lofi determinista por seed · cero archivos de audio"
+      >8-BIT RADIO</span>
       <button
         id="lofi-track"
         type="button"
         title="Copiar link de esta pista"
-        class="font-pixel-label text-[10px] text-[var(--fg)] truncate hover:text-[var(--accent)] transition-colors min-h-11 py-1"
+        class="font-pixel-label text-xs text-[var(--fg)] truncate hover:text-[var(--accent)] transition-colors min-h-11 py-1"
       >—</button>
-      <span id="lofi-time" class="font-pixel-label text-[10px] text-[var(--fg-faint)] shrink-0 hidden md:inline">0:00 / 0:00</span>
+      <span id="lofi-time" class="text-xs text-[var(--fg-faint)] tabular-nums shrink-0 hidden md:inline">0:00 / 0:00</span>
     </div>
 
     <div class="flex items-center gap-1 shrink-0">
@@ -39,12 +43,18 @@
       <button id="lofi-next" type="button" aria-label="Siguiente pista" title="Siguiente pista" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11 min-w-9 inline-flex items-center justify-center">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zM16 6h2v12h-2z"/></svg>
       </button>
-      <button id="lofi-mute" type="button" aria-label="Silenciar" title="Silenciar" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11 min-w-9 inline-flex items-center justify-center">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
+      <button id="lofi-mute" type="button" aria-label="Volumen" title="Volumen (click para subir)" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11 inline-flex items-center justify-center gap-[2px] px-1">
+        <span class="flex items-end gap-[2px] h-3.5" aria-hidden="true">
+          <span class="lofi-vol-block w-[3px] h-1.5 bg-[var(--fg-muted)]"></span>
+          <span class="lofi-vol-block w-[3px] h-2.5 bg-[var(--fg-muted)]"></span>
+          <span class="lofi-vol-block w-[3px] h-3 bg-[var(--fg-muted)]"></span>
+          <span class="lofi-vol-block w-[3px] h-3.5 bg-[var(--fg-muted)]"></span>
+          <span class="lofi-vol-block w-[3px] h-4 bg-[var(--fg-muted)]"></span>
+        </span>
       </button>
-      <button id="lofi-crackle" type="button" aria-pressed="true" title="Crackle de vinilo" aria-label="Crackle de vinilo" class="font-pixel-label text-[9px] px-1.5 text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors min-h-11">VIN</button>
-      <button id="lofi-wobble" type="button" aria-pressed="true" title="Wobble de cinta" aria-label="Wobble de cinta" class="font-pixel-label text-[9px] px-1.5 text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors min-h-11">TAPE</button>
-      <button id="lofi-export" type="button" title="Exporta la composición (notas, swing, velocidades), no el audio sintetizado" class="font-pixel-label text-[9px] px-1.5 border border-[var(--border-strong)] text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11" aria-label="Descargar .mid">.MID</button>
+      <button id="lofi-crackle" type="button" aria-pressed="true" title="Crackle de vinilo" aria-label="Crackle de vinilo" class="pixel-btn font-pixel-label text-xs px-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)] min-h-11">VIN</button>
+      <button id="lofi-wobble" type="button" aria-pressed="true" title="Wobble de cinta" aria-label="Wobble de cinta" class="pixel-btn font-pixel-label text-xs px-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)] min-h-11">TAPE</button>
+      <button id="lofi-export" type="button" title="Exporta la composición (notas, swing, velocidades), no el audio sintetizado" class="pixel-btn font-pixel-label text-xs px-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)] min-h-11" aria-label="Descargar .mid">.MID</button>
     </div>
   </div>
 </aside>
@@ -70,12 +80,14 @@
 
   const els = {
     eq: requireEl<HTMLElement>("lofi-eq"),
+    progress: requireEl<HTMLElement>("lofi-progress"),
     track: requireEl<HTMLButtonElement>("lofi-track"),
     time: requireEl<HTMLElement>("lofi-time"),
     play: requireEl<HTMLButtonElement>("lofi-play"),
     prev: requireEl<HTMLButtonElement>("lofi-prev"),
     next: requireEl<HTMLButtonElement>("lofi-next"),
     mute: requireEl<HTMLButtonElement>("lofi-mute"),
+    volBlocks: Array.from(document.querySelectorAll<HTMLElement>(".lofi-vol-block")),
     crackle: requireEl<HTMLButtonElement>("lofi-crackle"),
     wobble: requireEl<HTMLButtonElement>("lofi-wobble"),
     exportBtn: requireEl<HTMLButtonElement>("lofi-export"),
@@ -83,11 +95,19 @@
     iconPause: requireEl<HTMLElement>("lofi-icon-pause"),
   };
 
+  // Stepped pixel volume: 5 levels, persisted (agy review).
+  const VOLUME_LEVELS = [0, 0.25, 0.5, 0.75, 1];
+  const storedVolume = Number(window.localStorage.getItem("lofi-volume"));
+  let volumeIndex = VOLUME_LEVELS.includes(storedVolume)
+    ? VOLUME_LEVELS.indexOf(storedVolume)
+    : VOLUME_LEVELS.indexOf(DEFAULT_FX.volume) >= 0
+      ? VOLUME_LEVELS.indexOf(DEFAULT_FX.volume)
+      : 3;
+
   let ctx: AudioContext | null = null;
   let engine: LofiEngine | null = null;
-  let fx: FxSettings = { ...DEFAULT_FX };
+  let fx: FxSettings = { ...DEFAULT_FX, volume: VOLUME_LEVELS[volumeIndex] };
   let playing = false;
-  let lastVolume = fx.volume;
 
   // Seed history for prev/next navigation.
   const initialSeed = new URLSearchParams(window.location.search).get("seed");
@@ -120,7 +140,9 @@
   function renderTime(): void {
     const total = loopSeconds();
     const current = playing ? (elapsedMs + (performance.now() - startedAt)) / 1000 : elapsedMs / 1000;
-    els.time.textContent = `${fmt(current % total)} / ${fmt(total)}`;
+    const looped = current % total;
+    els.time.textContent = `${fmt(looped)} / ${fmt(total)}`;
+    els.progress.style.width = `${Math.min(100, (looped / total) * 100)}%`;
   }
 
   function syncSeedUrl(): void {
@@ -151,7 +173,12 @@
     els.crackle.style.color = fx.crackle ? "var(--accent)" : "";
     els.wobble.setAttribute("aria-pressed", String(fx.wobble));
     els.wobble.style.color = fx.wobble ? "var(--accent)" : "";
-    els.mute.style.opacity = fx.volume === 0 ? "0.5" : "1";
+    const level = fx.volume;
+    els.volBlocks.forEach((block, i) => {
+      block.style.background = i < Math.round(level * 5) ? "var(--accent)" : "var(--border)";
+    });
+    els.mute.setAttribute("aria-label", `Volumen: ${Math.round(level * 100)}%`);
+    els.mute.title = `Volumen: ${Math.round(level * 100)}% (click para cambiar)`;
   }
 
   function loadSeed(seed: string): void {
@@ -220,12 +247,9 @@
   });
 
   els.mute.addEventListener("click", () => {
-    if (fx.volume > 0) {
-      lastVolume = fx.volume;
-      fx = { ...fx, volume: 0 };
-    } else {
-      fx = { ...fx, volume: lastVolume || DEFAULT_FX.volume };
-    }
+    volumeIndex = (volumeIndex + 1) % VOLUME_LEVELS.length;
+    fx = { ...fx, volume: VOLUME_LEVELS[volumeIndex] };
+    window.localStorage.setItem("lofi-volume", String(fx.volume));
     updateFxUI();
     engine?.setFx(fx);
   });

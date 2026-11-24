@@ -14,7 +14,7 @@
   --accent-hover: #5B21B6;
   --tertiary: #552400;
   --tertiary-hover: #783600;
-  --pixel-shadow: #0B0810;
+  --pixel-shadow: #C9B8E6;
   --badge-bg: #F3EBF8;
   --callout-bg: #F9F1FD;
   --callout-border: #CCC3D6;
@@ -114,6 +114,24 @@ a {
 
 a:hover {
   color: var(--accent);
+}
+
+/* ─── Pixel interaction states ─── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pixel-btn {
+  border: 2px solid var(--border-strong);
+  background: transparent;
+  box-shadow: 2px 2px 0 0 var(--pixel-shadow);
+  transition: none;
+}
+
+.pixel-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
 }
 
 .link-underline {
@@ -220,7 +238,7 @@ html.dark-mode .hero-glow {
 }
 
 .eq-bars.eq-playing .eq-bar {
-  animation: eq-bounce 0.9s ease-in-out infinite;
+  animation: eq-bounce 0.9s steps(3, jump-none) infinite;
 }
 .eq-bars.eq-playing .eq-bar:nth-child(2) { animation-duration: 0.7s; animation-delay: 0.1s; }
 .eq-bars.eq-playing .eq-bar:nth-child(3) { animation-duration: 1.1s; animation-delay: 0.2s; }
@@ -229,6 +247,16 @@ html.dark-mode .hero-glow {
 @keyframes eq-bounce {
   0%, 100% { height: 3px; }
   50% { height: 14px; }
+}
+
+.lofi-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  width: 0;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
