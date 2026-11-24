@@ -40,6 +40,7 @@ All commands are run from the root of the project, from a terminal:
 | `npm run build`           | Build your production site to `./dist/`          |
 | `npm run preview`         | Preview your build locally                       |
 | `npm test`                | Run the vitest suite (lofi engine + exporter)    |
+| `npm run test:ai`         | Live AI e2e: ES/EN prompts vs `pnpm dev` — asserts the music changes and tracks stay valid |
 | `npm run typecheck`       | Typecheck `.ts`/`.astro` sources (`astro check`)  |
 
 ## 🎵 Lofi MIDI Generator
@@ -50,7 +51,7 @@ Web Audio API in a latin dreamy lofi/trap style, and the composition can be
 downloaded as a General MIDI `.mid` (loops 4×) for any DAW.
 
 - `src/lib/lofi/generator.ts` — pure deterministic composition (seed → PRNG → chords/bass/drums/melody with swing, strum and laid-back snares baked into fractional beats)
-- `src/lib/lofi/audio-engine.ts` — browser-only Web Audio engine (lookahead scheduler, FM electric piano, synthesized drums, tape wobble, vinyl crackle, saturation)
+- `src/lib/lofi/audio-engine.ts` — browser-only Web Audio engine (lookahead scheduler, FM electric piano, synthesized drums, saturation)
 - `src/lib/lofi/midi-export.ts` — lazy `.mid` export via `@tonejs/midi`
 - `src/components/LofiPlayer.astro` — the island UI
 

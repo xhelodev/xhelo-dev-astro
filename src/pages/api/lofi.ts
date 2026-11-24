@@ -96,51 +96,65 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   const model = (import.meta.env.OPENROUTER_MODEL ?? process.env.OPENROUTER_MODEL ?? DEFAULT_MODEL).trim();
   const origin = request.headers.get("origin") ?? "https://xhelo.dev";
 
+  const baseBody = {
+    model,
+    temperature: 0.85,
+    // Reasoning-capable models spend tokens thinking before the JSON answer; a
+    // low budget starves content to null. Attempt 1 bounds reasoning; attempt 2
+    // (only when content comes back empty) disables it so the whole budget goes
+    // to the JSON composition itself.
+    max_tokens: 6000,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: buildUserPrompt(prompt) },
+    ],
+  };
+  const attempts: Array<Record<string, unknown>> = [
+    { ...baseBody, reasoning: { effort: "low" } },
+    { ...baseBody, reasoning: { enabled: false } },
+  ];
+
   try {
-    const upstream = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": origin,
-        "X-Title": "8-BIT RADIO Lofi Generator",
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.85,
-        // Reasoning-capable models spend tokens on thinking before the JSON answer;
-        // a low max_tokens starves content to null. Keep reasoning bounded and leave
-        // enough room for the full composition.
-        max_tokens: 6000,
-        reasoning: { effort: "low" },
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: buildUserPrompt(prompt) },
-        ],
-      }),
-      signal: AbortSignal.timeout(45_000),
-    });
+    let content: string | null = null;
+    for (let attempt = 0; attempt < attempts.length; attempt++) {
+      const upstream = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": origin,
+          "X-Title": "8-BIT RADIO Lofi Generator",
+        },
+        body: JSON.stringify(attempts[attempt]),
+        signal: AbortSignal.timeout(45_000),
+      });
 
-    if (!upstream.ok) {
-      console.error(`[api/lofi] OpenRouter error: status=${upstream.status}`);
-      return jsonResponse({ error: "Upstream AI provider returned an error." }, 502);
-    }
+      if (!upstream.ok) {
+        console.error(`[api/lofi] OpenRouter error: status=${upstream.status} (attempt ${attempt + 1}/2)`);
+        return jsonResponse({ error: "Upstream AI provider returned an error." }, 502);
+      }
 
-    const data = (await upstream.json()) as {
-      choices?: Array<{ message?: { content?: string | null }; finish_reason?: string | null }>;
-      usage?: unknown;
-      error?: unknown;
-    };
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) {
+      const data = (await upstream.json()) as {
+        choices?: Array<{ message?: { content?: string | null }; finish_reason?: string | null }>;
+        usage?: unknown;
+        error?: unknown;
+      };
+      const candidate = data.choices?.[0]?.message?.content;
+      if (candidate) {
+        content = candidate;
+        break;
+      }
       console.error(
-        `[api/lofi] Empty completion content from OpenRouter: ${JSON.stringify({
+        `[api/lofi] Empty completion content (attempt ${attempt + 1}/2): ${JSON.stringify({
           finish_reason: data.choices?.[0]?.finish_reason ?? null,
           usage: data.usage ?? null,
           upstream_error: data.error ?? null,
         })}`,
       );
+    }
+
+    if (!content) {
       return jsonResponse({ error: "AI returned an empty composition." }, 502);
     }
 
