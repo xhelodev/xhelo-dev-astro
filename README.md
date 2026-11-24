@@ -43,23 +43,41 @@ All commands are run from the root of the project, from a terminal:
 | `npm run test:ai`         | Live AI e2e: ES/EN prompts vs `pnpm dev` — asserts the music changes and tracks stay valid |
 | `npm run typecheck`       | Typecheck `.ts`/`.astro` sources (`astro check`)  |
 
-## 🎵 Lofi MIDI Generator
+## 🎵 16-BIT RADIO — AI lofi generator
 
-The home page embeds a compact bar player: the same seed always produces the
-same track (share it via the `?seed=` URL), audio is synthesized live with the
-Web Audio API in a latin dreamy lofi/trap style, and the composition can be
-downloaded as a General MIDI `.mid` (loops 4×) for any DAW.
+The home page embeds a compact bar player: type a style prompt (ES or EN) and
+an AI model composes a track, which the Web Audio API synthesizes live — no
+audio files are ever stored or served. The composition can be exported as a
+General MIDI `.mid` (loops 4×) for any DAW.
 
-- `src/lib/lofi/generator.ts` — pure deterministic composition (seed → PRNG → chords/bass/drums/melody with swing, strum and laid-back snares baked into fractional beats)
-- `src/lib/lofi/audio-engine.ts` — browser-only Web Audio engine (lookahead scheduler, FM electric piano, synthesized drums, saturation)
+### Sharing tracks
+
+Click the track name to copy a share link (`/?t=<id>`). The composition
+(a few KB of notes, not audio) is cached server-side in Upstash Redis with a
+**7-day sliding TTL**: every listen refreshes the expiry, and a track nobody
+opens for 7 days is evicted automatically. Opening a link loads the track
+ready to play — no autoplay, since browsers require a user gesture.
+
+- `src/lib/lofi/ai-track.ts` — prompts and compiles the AI composition
+- `src/lib/lofi/presets.ts` — synth presets (snes-rpg, genesis-fm, …)
+- `src/lib/lofi/generator.ts` — pure deterministic composition (seed → PRNG → notes)
+- `src/lib/lofi/audio-engine.ts` — browser-only Web Audio engine
 - `src/lib/lofi/midi-export.ts` — lazy `.mid` export via `@tonejs/midi`
+- `src/lib/lofi/track-store.ts` — share-cache validation + Upstash REST client
 - `src/components/LofiPlayer.astro` — the island UI
+- `src/pages/api/lofi.ts`, `src/pages/api/tracks.ts` (+ `tracks/[id].ts`) — SSR endpoints
 
 Nothing audio-related loads until the first click (dynamic imports), and the
 `AudioContext` is created synchronously inside the click handler for iOS Safari.
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+
+### Environment variables (SSR endpoints)
+
+| Variable | Endpoint | Purpose |
+| :-- | :-- | :-- |
+| `OPENROUTER_API_KEY` | `/api/lofi` | OpenRouter key for the AI composition (503 when unset) |
+| `OPENROUTER_MODEL` | `/api/lofi` | Optional model override (default `deepseek/deepseek-v4.1-flash-1017`) |
+| `UPSTASH_REDIS_REST_URL` | `/api/tracks` | Upstash Redis REST endpoint for the share cache (503 when unset) |
+| `UPSTASH_REDIS_REST_TOKEN` | `/api/tracks` | Upstash Redis REST token |
 
 ## 👀 Want to learn more?
 

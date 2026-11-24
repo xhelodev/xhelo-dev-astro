@@ -109,7 +109,9 @@
 
   interface HistoryEntry {
     track: LofiTrack;
-    shareableSeed: string | null;
+    /** Share-cache id backing `?t=<id>` links (S11); null until the first
+     *  share click saves the track. */
+    shareId: string | null;
   }
 
   // Stepped pixel volume: 5 levels, persisted (agy review).
@@ -121,14 +123,18 @@
       ? VOLUME_LEVELS.indexOf(DEFAULT_FX.volume)
       : 3;
 
+  // Share-cache id pattern (client-side copy; track-store is server-only).
+  const SHARE_ID_PATTERN = /^[0-9a-f]{12}$/;
+
   let ctx: AudioContext | null = null;
   let engine: LofiEngine | null = null;
   let fx: FxSettings = { ...DEFAULT_FX, volume: VOLUME_LEVELS[volumeIndex] };
   let playing = false;
   let generating = false;
+  let sharing = false;
 
-  // Track history for prev/next navigation (AI tracks only — L28: the bar
-  // starts idle; nothing exists until the first GEN).
+  // Track history for prev/next navigation (AI tracks and restored shares;
+  // L28: the bar starts idle until the first GEN or a shared `?t=` link).
   const historyEntries: HistoryEntry[] = [];
   let historyIndex = -1;
   let track: LofiTrack | null = null;
@@ -155,6 +161,7 @@
     els.track.textContent = track
       ? `${trackName()} · ${track.bpm}BPM · ${track.key}`
       : "PROMPT.MOD · ENVIÁ UN ESTILO";
+    els.track.title = track ? "Copiar link de esta pista" : "Generá una pista para compartirla";
   }
 
   function renderTime(): void {
@@ -170,12 +177,15 @@
     els.progress.style.width = `${Math.min(100, (looped / total) * 100)}%`;
   }
 
-  function syncSeedUrl(seed: string | null): void {
+  /** Keeps the URL as the share link: `?t=<cache id>` when the current track
+   *  has one, no params otherwise. Stale `?seed=` links stay dead (L28). */
+  function syncTrackUrl(shareId: string | null): void {
     const url = new URL(window.location.href);
-    if (seed) {
-      url.searchParams.set("seed", seed);
+    url.searchParams.delete("seed");
+    if (shareId) {
+      url.searchParams.set("t", shareId);
     } else {
-      url.searchParams.delete("seed");
+      url.searchParams.delete("t");
     }
     window.history.replaceState(null, "", url);
   }
@@ -250,7 +260,7 @@
     elapsedMs = 0;
     renderTrackInfo();
     renderTime();
-    syncSeedUrl(entry.shareableSeed);
+    syncTrackUrl(entry.shareId);
     engine?.setTrack(track);
     updateNavUI();
   }
@@ -328,7 +338,7 @@
           return;
         }
 
-        const entry: HistoryEntry = { track: payload.track, shareableSeed: null };
+        const entry: HistoryEntry = { track: payload.track, shareId: null };
         historyEntries.splice(historyIndex + 1);
         historyEntries.push(entry);
         historyIndex = historyEntries.length - 1;
@@ -353,11 +363,57 @@
     })();
   });
 
+  function copyShareLink(): void {
+    void navigator.clipboard
+      ?.writeText(window.location.href)
+      .then(() => {
+        els.track.textContent = "LINK COPIADO";
+        window.setTimeout(() => renderTrackInfo(), 1200);
+      })
+      .catch(() => {
+        // Clipboard denied: the address bar still holds the `?t=` link.
+        setStatus("NO SE PUDO COPIAR", true);
+      });
+  }
+
+  // Share button (S11): first click saves the track to the cache and copies
+  // the `?t=<id>` link; later clicks copy directly. Idle bar: no-op.
   els.track.addEventListener("click", () => {
-    void navigator.clipboard?.writeText(window.location.href).then(() => {
-      els.track.textContent = "LINK COPIADO";
-      window.setTimeout(() => renderTrackInfo(), 1200);
-    });
+    if (!track || sharing) return;
+    const entry = historyEntries[historyIndex];
+    if (!entry) return;
+
+    void (async () => {
+      if (entry.shareId) {
+        copyShareLink();
+        return;
+      }
+      sharing = true;
+      els.track.textContent = "GUARDANDO...";
+      try {
+        const res = await fetch("/api/tracks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ track: entry.track }),
+        });
+        const payload = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
+        if (!res.ok || !payload.id) {
+          setStatus(
+            res.status === 429 ? "DEMASIADO RÁPIDO" : res.status === 503 ? "SIN CACHE" : "ERROR AL GUARDAR",
+            true,
+          );
+          return;
+        }
+        entry.shareId = payload.id;
+        syncTrackUrl(entry.shareId);
+        copyShareLink();
+      } catch {
+        setStatus("ERROR DE RED", true);
+      } finally {
+        sharing = false;
+        renderTrackInfo();
+      }
+    })();
   });
 
   els.mute.addEventListener("click", () => {
@@ -385,6 +441,46 @@
   updateFxUI();
   updatePlayingUI();
   updateNavUI();
-  // `?seed=` share links are dead (S4/L28): strip any stale one on load.
-  syncSeedUrl(null);
+
+  /** Restores a shared track from `?t=<id>` (S11) — loaded, play enabled, NO
+   *  autoplay (browser gesture policy). Stale `?seed=` links stay dead. */
+  async function restoreSharedTrack(): Promise<void> {
+    const sharedId = new URL(window.location.href).searchParams.get("t");
+    if (!sharedId) {
+      syncTrackUrl(null); // strip any stale `?seed=` (dead since L28)
+      return;
+    }
+    if (!SHARE_ID_PATTERN.test(sharedId)) {
+      syncTrackUrl(null); // garbage param — drop it
+      return;
+    }
+    try {
+      const res = await fetch(`/api/tracks/${encodeURIComponent(sharedId)}`);
+      const payload = (await res.json().catch(() => ({}))) as { track?: LofiTrack; error?: string };
+      if (res.ok && payload.track) {
+        // Only restore while the bar is still untouched: a user already
+        // generating/playing owns the state, not the incoming link.
+        if (generating || playing || historyEntries.length > 0) return;
+        const entry: HistoryEntry = { track: payload.track, shareId: sharedId };
+        historyEntries.push(entry);
+        historyIndex = historyEntries.length - 1;
+        loadEntry(entry);
+        setStatus("PISTA COMPARTIDA");
+        window.setTimeout(() => {
+          if (!generating) setStatus("");
+        }, 2500);
+        return;
+      }
+      if (res.status === 404) {
+        syncTrackUrl(null); // the link is dead — clean it from the address bar
+        setStatus("PISTA EXPIRADA", true);
+      } else {
+        setStatus(res.status === 503 ? "SIN CACHE" : "ERROR AL CARGAR", true);
+      }
+    } catch {
+      setStatus("ERROR DE RED", true);
+    }
+  }
+
+  void restoreSharedTrack();
 </script>

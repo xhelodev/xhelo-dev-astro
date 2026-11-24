@@ -48,7 +48,8 @@ export type SoundPreset = (typeof SOUND_PRESETS)[number];
 
 /** The full generated composition. Deterministic for a given seed. */
 export interface LofiTrack {
-  /** Seed string this track was generated from (URL-shareable). */
+  /** Track display name (generator seed or AI prompt slug) — powers the
+   *  `<SEED>.MOD` readout; share links use `?t=<cache id>` instead (S11). */
   seed: string;
   /** Tempo in BPM, 55–120. */
   bpm: number;
