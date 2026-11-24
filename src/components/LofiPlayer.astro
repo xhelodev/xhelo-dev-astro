@@ -1,7 +1,7 @@
 ---
-// LofiPlayer — sticky thin pixel music bar (Stitch design, "8-BIT RADIO").
-// Vanilla island: markup here, state in the bundled <script>. Audio modules
-// load lazily on first interaction.
+// LofiPlayer — sticky compact 16-bit pixel music bar.
+// Single-row by default; clicking the search button expands the style prompt
+// input and quick style chips.
 ---
 
 <aside
@@ -10,10 +10,10 @@
   class="sticky top-0 z-40 w-full border-b-2 border-[var(--border-strong)] bg-[var(--bg-soft)] relative"
 >
   <div id="lofi-progress" class="lofi-progress" aria-hidden="true"></div>
-  <div class="max-w-2xl mx-auto px-4 sm:px-6 py-2 flex flex-col gap-1.5">
-    <div class="flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3 min-w-0">
-        <!-- Pixel equalizer -->
+  <div class="max-w-2xl mx-auto px-4 sm:px-6 py-2 flex flex-col gap-2">
+    <!-- Primary single row -->
+    <div class="flex items-center justify-between gap-2 min-h-8">
+      <div class="flex items-center gap-2.5 min-w-0">
         <div id="lofi-eq" class="eq-bars flex items-end gap-[3px] h-4 shrink-0" aria-hidden="true">
           <span class="eq-bar"></span>
           <span class="eq-bar"></span>
@@ -21,59 +21,122 @@
           <span class="eq-bar"></span>
         </div>
         <span
-          class="font-pixel-label text-xs text-[var(--accent)] shrink-0 hidden sm:inline"
+          id="lofi-brand"
+          class="font-pixel-label text-xs text-[var(--accent)] shrink-0"
           title="Sintetizador 16-bit Web Audio en tiempo real · MIDI generado por IA · cero archivos de audio"
         >16-BIT RADIO</span>
         <button
           id="lofi-track"
           type="button"
           title="Copiar link de esta pista"
-          class="font-pixel-label text-xs text-[var(--fg)] truncate hover:text-[var(--accent)] transition-colors min-h-9 py-1"
-        >—</button>
-        <span id="lofi-time" class="text-xs text-[var(--fg-faint)] tabular-nums shrink-0 hidden md:inline">0:00 / 0:00</span>
+          class="hidden inline-flex items-center gap-1.5 font-pixel-label text-xs text-[var(--fg)] truncate hover:text-[var(--accent)] transition-colors min-h-8 py-0.5 max-w-full"
+        >
+          <span id="lofi-track-text" class="truncate">—</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="shrink-0 opacity-60"
+            aria-hidden="true"
+          >
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+          </svg>
+        </button>
+        <span id="lofi-time" class="hidden text-xs text-[var(--fg-faint)] tabular-nums shrink-0">0:00 / 0:00</span>
       </div>
 
       <div class="flex items-center gap-1 shrink-0">
-        <button id="lofi-prev" type="button" aria-label="Pista anterior" title="Pista anterior" disabled class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-9 min-w-8 inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+        <span id="lofi-status" role="status" aria-live="polite" class="font-pixel-label text-[10px] text-[var(--fg-faint)] shrink-0 hidden mr-1"></span>
+
+        <!-- Transport controls: shown only once a track is loaded -->
+        <div id="lofi-transport" class="hidden flex items-center gap-1 shrink-0">
+          <button id="lofi-prev" type="button" aria-label="Pista anterior" title="Pista anterior" disabled class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-8 min-w-7 inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+          </button>
+          <button id="lofi-play" type="button" aria-label="Reproducir" title="Reproducir / pausar" disabled class="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors min-h-8 min-w-7 inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed">
+            <svg id="lofi-icon-play" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="lofi-icon-pause" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="hidden"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+          </button>
+          <button id="lofi-next" type="button" aria-label="Siguiente pista" title="Siguiente pista" disabled class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-8 min-w-7 inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zM16 6h2v12h-2z"/></svg>
+          </button>
+
+          <!-- Direct mute toggle + clickable stepped volume bars -->
+          <div id="lofi-volume-group" role="group" aria-label="Volumen" class="inline-flex items-center gap-0.5 px-1">
+            <button
+              id="lofi-mute"
+              type="button"
+              aria-label="Silenciar"
+              title="Silenciar / restaurar"
+              class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-8 min-w-6 inline-flex items-center justify-center"
+            >
+              <svg id="lofi-icon-vol-on" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+              <svg id="lofi-icon-vol-off" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="hidden"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></svg>
+            </button>
+            <span class="inline-flex items-end gap-[2px] h-4">
+              <button type="button" data-vol-level="0.2" aria-label="Volumen 20%" class="lofi-vol-btn min-h-8 inline-flex items-end pb-2 px-[1px]"><span class="lofi-vol-block w-[3px] h-1.5 bg-[var(--fg-muted)]"></span></button>
+              <button type="button" data-vol-level="0.4" aria-label="Volumen 40%" class="lofi-vol-btn min-h-8 inline-flex items-end pb-2 px-[1px]"><span class="lofi-vol-block w-[3px] h-2 bg-[var(--fg-muted)]"></span></button>
+              <button type="button" data-vol-level="0.6" aria-label="Volumen 60%" class="lofi-vol-btn min-h-8 inline-flex items-end pb-2 px-[1px]"><span class="lofi-vol-block w-[3px] h-2.5 bg-[var(--fg-muted)]"></span></button>
+              <button type="button" data-vol-level="0.8" aria-label="Volumen 80%" class="lofi-vol-btn min-h-8 inline-flex items-end pb-2 px-[1px]"><span class="lofi-vol-block w-[3px] h-3 bg-[var(--fg-muted)]"></span></button>
+              <button type="button" data-vol-level="1" aria-label="Volumen 100%" class="lofi-vol-btn min-h-8 inline-flex items-end pb-2 px-[1px]"><span class="lofi-vol-block w-[3px] h-3.5 bg-[var(--fg-muted)]"></span></button>
+            </span>
+          </div>
+
+          <button id="lofi-export" type="button" title="Exporta la composición (notas, swing, velocidades), no el audio sintetizado" disabled class="pixel-btn font-pixel-label text-xs px-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)] min-h-7 disabled:opacity-40 disabled:cursor-not-allowed" aria-label="Descargar .mid">.MID</button>
+        </div>
+
+        <!-- Search toggle button: reveals the prompt input + quick chips -->
+        <button
+          id="lofi-search-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="lofi-prompt-drawer"
+          aria-label="Buscar estilo musical"
+          title="Buscar estilo musical"
+          class="pixel-btn font-pixel-label text-xs px-2 py-1 text-[var(--accent)] hover:text-[var(--accent-hover)] inline-flex items-center gap-1.5 min-h-7 shrink-0"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <span id="lofi-search-label">BUSCAR</span>
         </button>
-        <button id="lofi-play" type="button" aria-label="Reproducir" title="Reproducir / pausar" disabled class="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors min-h-9 min-w-8 inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed">
-          <svg id="lofi-icon-play" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-          <svg id="lofi-icon-pause" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="hidden"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
-        </button>
-        <button id="lofi-next" type="button" aria-label="Siguiente pista" title="Siguiente pista" disabled class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-9 min-w-8 inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zM16 6h2v12h-2z"/></svg>
-        </button>
-        <button id="lofi-mute" type="button" aria-label="Volumen" title="Volumen (click para subir)" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-9 inline-flex items-center justify-center gap-[2px] px-1">
-          <span class="flex items-end gap-[2px] h-3.5" aria-hidden="true">
-            <span class="lofi-vol-block w-[3px] h-1.5 bg-[var(--fg-muted)]"></span>
-            <span class="lofi-vol-block w-[3px] h-2.5 bg-[var(--fg-muted)]"></span>
-            <span class="lofi-vol-block w-[3px] h-3 bg-[var(--fg-muted)]"></span>
-            <span class="lofi-vol-block w-[3px] h-3.5 bg-[var(--fg-muted)]"></span>
-            <span class="lofi-vol-block w-[3px] h-4 bg-[var(--fg-muted)]"></span>
-          </span>
-        </button>
-        <button id="lofi-export" type="button" title="Exporta la composición (notas, swing, velocidades), no el audio sintetizado" disabled class="pixel-btn font-pixel-label text-xs px-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)] min-h-8 disabled:opacity-40 disabled:cursor-not-allowed" aria-label="Descargar .mid">.MID</button>
       </div>
     </div>
 
-    <form id="lofi-prompt-form" class="flex items-center gap-2" autocomplete="off">
-      <label for="lofi-prompt" class="sr-only">Estilo musical</label>
-      <input
-        id="lofi-prompt"
-        name="prompt"
-        type="text"
-        maxlength="140"
-        placeholder="Estilo (ej: snes rpg, genesis fm, bossa lluviosa, synthwave)..."
-        class="flex-1 min-w-0 bg-[var(--bg)] border border-[var(--border-strong)] px-2.5 py-1 text-xs text-[var(--fg)] placeholder:text-[var(--fg-faint)] focus:border-[var(--accent)] focus:outline-none"
-      />
-      <button
-        id="lofi-generate"
-        type="submit"
-        class="pixel-btn font-pixel-label text-xs px-2.5 py-1 text-[var(--accent)] hover:text-[var(--accent-hover)] shrink-0 disabled:opacity-50"
-      >GEN</button>
-      <span id="lofi-status" role="status" aria-live="polite" class="font-pixel-label text-[10px] text-[var(--fg-faint)] shrink-0 hidden"></span>
-    </form>
+    <!-- Collapsible prompt drawer: hidden until search button is clicked -->
+    <div id="lofi-prompt-drawer" class="hidden flex flex-col gap-1.5 pb-0.5">
+      <form id="lofi-prompt-form" class="flex items-center gap-2" autocomplete="off">
+        <label id="lofi-prompt-label" for="lofi-prompt" class="sr-only">Estilo musical</label>
+        <input
+          id="lofi-prompt"
+          name="prompt"
+          type="text"
+          maxlength="140"
+          placeholder="Estilo (ej: snes rpg, genesis fm, bossa, synthwave)..."
+          class="flex-1 min-w-0 bg-[var(--bg)] border border-[var(--border-strong)] px-2.5 py-1 text-xs text-[var(--fg)] placeholder:text-[var(--fg-faint)] focus:border-[var(--accent)] focus:outline-none"
+        />
+        <button
+          id="lofi-generate"
+          type="submit"
+          class="pixel-btn font-pixel-label text-xs px-2.5 py-1 text-[var(--accent)] hover:text-[var(--accent-hover)] shrink-0 disabled:opacity-50"
+        >GEN</button>
+      </form>
+
+      <div id="lofi-chips" role="group" aria-label="Estilos rápidos" class="flex items-center gap-1.5 flex-wrap">
+        <button type="button" data-prompt="snes rpg" class="lofi-chip font-pixel-label text-[10px] px-2 py-0.5 border border-[var(--border)] bg-[var(--bg)] text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-40">snes rpg</button>
+        <button type="button" data-prompt="genesis fm" class="lofi-chip font-pixel-label text-[10px] px-2 py-0.5 border border-[var(--border)] bg-[var(--bg)] text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-40">genesis fm</button>
+        <button type="button" data-prompt="bossa lluviosa" class="lofi-chip font-pixel-label text-[10px] px-2 py-0.5 border border-[var(--border)] bg-[var(--bg)] text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-40">bossa</button>
+        <button type="button" data-prompt="synthwave" class="lofi-chip font-pixel-label text-[10px] px-2 py-0.5 border border-[var(--border)] bg-[var(--bg)] text-[var(--fg-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors disabled:opacity-40">synthwave</button>
+      </div>
+    </div>
   </div>
 </aside>
 
@@ -82,6 +145,95 @@
   import type { FxSettings, LofiTrack } from "../lib/lofi/types";
   import type { LofiEngine } from "../lib/lofi/audio-engine";
 
+  type Lang = "es" | "en";
+
+  const I18N = {
+    es: {
+      playerAria: "Reproductor de música",
+      radioTitle: "Sintetizador 16-bit Web Audio en tiempo real · MIDI generado por IA · cero archivos de audio",
+      shareTitle: "Copiar link de esta pista",
+      prev: "Pista anterior",
+      next: "Siguiente pista",
+      play: "Reproducir",
+      pause: "Pausar",
+      playPauseTitle: "Reproducir / pausar",
+      volumeGroup: "Volumen",
+      mute: "Silenciar",
+      unmute: "Restaurar volumen",
+      muteTitle: "Silenciar / restaurar",
+      volumeLevel: (pct: number) => `Volumen ${pct}%`,
+      exportAria: "Descargar .mid",
+      exportTitle: "Exporta la composición (notas, swing, velocidades), no el audio sintetizado",
+      searchBtn: "BUSCAR",
+      searchOpenAria: "Buscar estilo musical",
+      searchCloseAria: "Cerrar buscador",
+      promptLabel: "Estilo musical",
+      promptPlaceholder: "Estilo (ej: snes rpg, genesis fm, bossa, synthwave)...",
+      quickStyles: "Estilos rápidos",
+      enterStyle: "ESCRIBÍ UN ESTILO",
+      generating: "GENERANDO...",
+      genError: "ERROR AL GENERAR",
+      noResponse: "SIN RESPUESTA",
+      ready: "LISTO",
+      netError: "ERROR DE RED",
+      linkCopied: "LINK COPIADO",
+      copyFailed: "NO SE PUDO COPIAR",
+      saving: "GUARDANDO...",
+      tooFast: "DEMASIADO RÁPIDO",
+      noCache: "SIN CACHE",
+      saveError: "ERROR AL GUARDAR",
+      sharedTrack: "PISTA COMPARTIDA",
+      expiredTrack: "PISTA EXPIRADA",
+      loadError: "ERROR AL CARGAR",
+    },
+    en: {
+      playerAria: "Music player",
+      radioTitle: "Real-time 16-bit Web Audio synth · AI-generated MIDI · zero audio files",
+      shareTitle: "Copy link to this track",
+      prev: "Previous track",
+      next: "Next track",
+      play: "Play",
+      pause: "Pause",
+      playPauseTitle: "Play / pause",
+      volumeGroup: "Volume",
+      mute: "Mute",
+      unmute: "Unmute",
+      muteTitle: "Mute / unmute",
+      volumeLevel: (pct: number) => `Volume ${pct}%`,
+      exportAria: "Download .mid",
+      exportTitle: "Exports the composition (notes, swing, velocities), not the synthesized audio",
+      searchBtn: "SEARCH",
+      searchOpenAria: "Search music style",
+      searchCloseAria: "Close search",
+      promptLabel: "Music style",
+      promptPlaceholder: "Style (e.g. snes rpg, genesis fm, bossa, synthwave)...",
+      quickStyles: "Quick styles",
+      enterStyle: "ENTER A STYLE",
+      generating: "GENERATING...",
+      genError: "GENERATION ERROR",
+      noResponse: "NO RESPONSE",
+      ready: "READY",
+      netError: "NETWORK ERROR",
+      linkCopied: "LINK COPIED",
+      copyFailed: "COPY FAILED",
+      saving: "SAVING...",
+      tooFast: "TOO FAST",
+      noCache: "NO CACHE",
+      saveError: "SAVE ERROR",
+      sharedTrack: "SHARED TRACK",
+      expiredTrack: "TRACK EXPIRED",
+      loadError: "LOAD ERROR",
+    },
+  } as const;
+
+  function getLang(): Lang {
+    return document.documentElement.lang === "en" ? "en" : "es";
+  }
+
+  function t() {
+    return I18N[getLang()];
+  }
+
   function requireEl<T extends HTMLElement>(id: string): T {
     const el = document.getElementById(id);
     if (!el) throw new Error(`missing element #${id}`);
@@ -89,22 +241,36 @@
   }
 
   const els = {
+    player: requireEl<HTMLElement>("lofi-player"),
+    brand: requireEl<HTMLElement>("lofi-brand"),
     eq: requireEl<HTMLElement>("lofi-eq"),
     progress: requireEl<HTMLElement>("lofi-progress"),
     track: requireEl<HTMLButtonElement>("lofi-track"),
+    trackText: requireEl<HTMLElement>("lofi-track-text"),
     time: requireEl<HTMLElement>("lofi-time"),
+    transport: requireEl<HTMLElement>("lofi-transport"),
     play: requireEl<HTMLButtonElement>("lofi-play"),
     prev: requireEl<HTMLButtonElement>("lofi-prev"),
     next: requireEl<HTMLButtonElement>("lofi-next"),
+    volumeGroup: requireEl<HTMLElement>("lofi-volume-group"),
     mute: requireEl<HTMLButtonElement>("lofi-mute"),
+    iconVolOn: requireEl<HTMLElement>("lofi-icon-vol-on"),
+    iconVolOff: requireEl<HTMLElement>("lofi-icon-vol-off"),
+    volBtns: Array.from(document.querySelectorAll<HTMLButtonElement>(".lofi-vol-btn")),
     volBlocks: Array.from(document.querySelectorAll<HTMLElement>(".lofi-vol-block")),
     exportBtn: requireEl<HTMLButtonElement>("lofi-export"),
     iconPlay: requireEl<HTMLElement>("lofi-icon-play"),
     iconPause: requireEl<HTMLElement>("lofi-icon-pause"),
+    searchToggle: requireEl<HTMLButtonElement>("lofi-search-toggle"),
+    searchLabel: requireEl<HTMLElement>("lofi-search-label"),
+    promptDrawer: requireEl<HTMLElement>("lofi-prompt-drawer"),
     promptForm: requireEl<HTMLFormElement>("lofi-prompt-form"),
+    promptLabel: requireEl<HTMLLabelElement>("lofi-prompt-label"),
     promptInput: requireEl<HTMLInputElement>("lofi-prompt"),
     generateBtn: requireEl<HTMLButtonElement>("lofi-generate"),
     status: requireEl<HTMLElement>("lofi-status"),
+    chipsContainer: requireEl<HTMLElement>("lofi-chips"),
+    chips: Array.from(document.querySelectorAll<HTMLButtonElement>(".lofi-chip")),
   };
 
   interface HistoryEntry {
@@ -114,24 +280,25 @@
     shareId: string | null;
   }
 
-  // Stepped pixel volume: 5 levels, persisted (agy review).
-  const VOLUME_LEVELS = [0, 0.25, 0.5, 0.75, 1];
-  const storedVolume = Number(window.localStorage.getItem("lofi-volume"));
-  let volumeIndex = VOLUME_LEVELS.includes(storedVolume)
-    ? VOLUME_LEVELS.indexOf(storedVolume)
-    : VOLUME_LEVELS.indexOf(DEFAULT_FX.volume) >= 0
-      ? VOLUME_LEVELS.indexOf(DEFAULT_FX.volume)
-      : 3;
+  // Persisted volume (0..1) + remembered non-zero level for instant mute/unmute.
+  const rawStoredVolume = window.localStorage.getItem("lofi-volume");
+  const parsedVolume = rawStoredVolume !== null ? Number(rawStoredVolume) : NaN;
+  const initialVolume =
+    Number.isFinite(parsedVolume) && parsedVolume >= 0 && parsedVolume <= 1
+      ? parsedVolume
+      : DEFAULT_FX.volume;
+  let lastNonZeroVolume = initialVolume > 0 ? initialVolume : DEFAULT_FX.volume || 0.8;
 
   // Share-cache id pattern (client-side copy; track-store is server-only).
   const SHARE_ID_PATTERN = /^[0-9a-f]{12}$/;
 
   let ctx: AudioContext | null = null;
   let engine: LofiEngine | null = null;
-  let fx: FxSettings = { ...DEFAULT_FX, volume: VOLUME_LEVELS[volumeIndex] };
+  let fx: FxSettings = { ...DEFAULT_FX, volume: initialVolume };
   let playing = false;
   let generating = false;
   let sharing = false;
+  let promptOpen = false;
 
   // Track history for prev/next navigation (AI tracks and restored shares;
   // L28: the bar starts idle until the first GEN or a shared `?t=` link).
@@ -157,11 +324,25 @@
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   }
 
+  function setPromptOpen(open: boolean, focusInput = false): void {
+    promptOpen = open;
+    els.promptDrawer.classList.toggle("hidden", !open);
+    els.searchToggle.setAttribute("aria-expanded", String(open));
+    const label = open ? t().searchCloseAria : t().searchOpenAria;
+    els.searchToggle.setAttribute("aria-label", label);
+    els.searchToggle.title = label;
+    if (open && focusInput) {
+      els.promptInput.focus();
+    }
+  }
+
   function renderTrackInfo(): void {
-    els.track.textContent = track
-      ? `${trackName()} · ${track.bpm} BPM · ${track.key}`
-      : "PROMPT.MOD · ENVIÁ UN ESTILO";
-    els.track.title = track ? "Copiar link de esta pista" : "Generá una pista para compartirla";
+    if (!track) {
+      els.trackText.textContent = "—";
+      return;
+    }
+    els.trackText.textContent = `${trackName()} · ${track.bpm} BPM · ${track.key}`;
+    els.track.title = t().shareTitle;
   }
 
   function renderTime(): void {
@@ -175,6 +356,36 @@
     const looped = current % total;
     els.time.textContent = `${fmt(looped)} / ${fmt(total)}`;
     els.progress.style.width = `${Math.min(100, (looped / total) * 100)}%`;
+  }
+
+  function applyI18n(): void {
+    const copy = t();
+    els.player.setAttribute("aria-label", copy.playerAria);
+    els.brand.title = copy.radioTitle;
+    els.track.title = copy.shareTitle;
+    els.prev.setAttribute("aria-label", copy.prev);
+    els.prev.title = copy.prev;
+    els.next.setAttribute("aria-label", copy.next);
+    els.next.title = copy.next;
+    els.play.setAttribute("aria-label", playing ? copy.pause : copy.play);
+    els.play.title = copy.playPauseTitle;
+    els.volumeGroup.setAttribute("aria-label", copy.volumeGroup);
+    els.mute.setAttribute("aria-label", fx.volume === 0 ? copy.unmute : copy.mute);
+    els.mute.title = copy.muteTitle;
+    els.volBtns.forEach((btn) => {
+      const pct = Math.round(Number(btn.dataset.volLevel) * 100);
+      btn.setAttribute("aria-label", copy.volumeLevel(pct));
+      btn.title = copy.volumeLevel(pct);
+    });
+    els.exportBtn.setAttribute("aria-label", copy.exportAria);
+    els.exportBtn.title = copy.exportTitle;
+    els.searchLabel.textContent = copy.searchBtn;
+    const searchAria = promptOpen ? copy.searchCloseAria : copy.searchOpenAria;
+    els.searchToggle.setAttribute("aria-label", searchAria);
+    els.searchToggle.title = searchAria;
+    els.promptLabel.textContent = copy.promptLabel;
+    els.promptInput.placeholder = copy.promptPlaceholder;
+    els.chipsContainer.setAttribute("aria-label", copy.quickStyles);
   }
 
   /** Keeps the URL as the share link: `?t=<cache id>` when the current track
@@ -204,7 +415,7 @@
   function updatePlayingUI(): void {
     els.iconPlay.classList.toggle("hidden", playing);
     els.iconPause.classList.toggle("hidden", !playing);
-    els.play.setAttribute("aria-label", playing ? "Pausar" : "Reproducir");
+    els.play.setAttribute("aria-label", playing ? t().pause : t().play);
     els.eq.classList.toggle("eq-playing", playing);
     if (playing) {
       startedAt = performance.now();
@@ -218,13 +429,25 @@
     }
   }
 
+  function setVolume(nextVolume: number): void {
+    const clamped = Math.max(0, Math.min(1, nextVolume));
+    if (clamped > 0) lastNonZeroVolume = clamped;
+    fx = { ...fx, volume: clamped };
+    window.localStorage.setItem("lofi-volume", String(fx.volume));
+    updateFxUI();
+    engine?.setFx(fx);
+  }
+
   function updateFxUI(): void {
     const level = fx.volume;
+    const isMuted = level <= 0.001;
+    els.iconVolOn.classList.toggle("hidden", isMuted);
+    els.iconVolOff.classList.toggle("hidden", !isMuted);
+    els.mute.setAttribute("aria-label", isMuted ? t().unmute : t().mute);
+    const activeBars = isMuted ? 0 : Math.max(1, Math.round(level * 5));
     els.volBlocks.forEach((block, i) => {
-      block.style.background = i < Math.round(level * 5) ? "var(--accent)" : "var(--border)";
+      block.style.background = i < activeBars ? "var(--accent)" : "var(--border)";
     });
-    els.mute.setAttribute("aria-label", `Volumen: ${Math.round(level * 100)}%`);
-    els.mute.title = `Volumen: ${Math.round(level * 100)}% (click para cambiar)`;
   }
 
   function unlockAudioContext(): AudioContext | null {
@@ -265,15 +488,96 @@
     updateNavUI();
   }
 
-  /** Transport availability follows the history: nothing is playable or
-   *  exportable until the first GEN (L28). */
+  /** Transport visibility & availability follow the history: compact idle bar
+   *  until the first GEN or restored share (L28). */
   function updateNavUI(): void {
     const hasTrack = track !== null;
+    els.transport.classList.toggle("hidden", !hasTrack);
+    els.track.classList.toggle("hidden", !hasTrack);
+    els.time.classList.toggle("md:inline", hasTrack);
+    // Keep "16-BIT RADIO" visible on mobile while idle, hide on small screens once track takes space.
+    els.brand.classList.toggle("hidden", hasTrack);
+    els.brand.classList.toggle("sm:inline", hasTrack);
+    // Show "BUSCAR" / "SEARCH" text while idle, compact icon-only once transport controls appear.
+    els.searchLabel.classList.toggle("hidden", hasTrack);
     els.play.disabled = !hasTrack;
     els.exportBtn.disabled = !hasTrack;
     els.prev.disabled = !hasTrack || historyIndex <= 0;
     els.next.disabled = !hasTrack || historyIndex >= historyEntries.length - 1;
   }
+
+  function setGeneratingUI(isGenerating: boolean): void {
+    generating = isGenerating;
+    els.promptInput.disabled = isGenerating;
+    els.generateBtn.disabled = isGenerating;
+    els.generateBtn.textContent = isGenerating ? "..." : "GEN";
+    els.chips.forEach((chip) => {
+      chip.disabled = isGenerating;
+    });
+  }
+
+  function generateFromPrompt(rawPrompt: string): void {
+    if (generating) return;
+
+    const prompt = rawPrompt.trim();
+    if (prompt.length < 2) {
+      setStatus(t().enterStyle, true);
+      els.promptInput.focus();
+      return;
+    }
+
+    // Unlock audio synchronously while still inside the user gesture.
+    unlockAudioContext();
+
+    void (async () => {
+      setGeneratingUI(true);
+      setStatus(t().generating);
+
+      try {
+        const res = await fetch("/api/lofi", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const payload = (await res.json().catch(() => ({}))) as { track?: LofiTrack; error?: string };
+        if (!res.ok || !payload.track) {
+          setStatus(payload.error ? t().genError : t().noResponse, true);
+          return;
+        }
+
+        const entry: HistoryEntry = { track: payload.track, shareId: null };
+        historyEntries.splice(historyIndex + 1);
+        historyEntries.push(entry);
+        historyIndex = historyEntries.length - 1;
+        loadEntry(entry);
+
+        const eng = await ensureEngine();
+        if (eng && !playing) {
+          eng.play();
+        }
+        setPromptOpen(false);
+        setStatus(t().ready);
+        window.setTimeout(() => {
+          if (!generating) setStatus("");
+        }, 1800);
+      } catch {
+        setStatus(t().netError, true);
+      } finally {
+        setGeneratingUI(false);
+      }
+    })();
+  }
+
+  els.searchToggle.addEventListener("click", () => {
+    setPromptOpen(!promptOpen, true);
+  });
+
+  els.promptDrawer.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && promptOpen) {
+      setPromptOpen(false);
+      els.searchToggle.focus();
+    }
+  });
 
   els.play.addEventListener("click", () => {
     if (!track) return;
@@ -307,77 +611,33 @@
 
   els.promptForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (generating) return;
+    generateFromPrompt(els.promptInput.value);
+  });
 
-    const prompt = els.promptInput.value.trim();
-    if (prompt.length < 2) {
-      setStatus("ESCRIBÍ UN ESTILO", true);
-      els.promptInput.focus();
-      return;
-    }
-
-    // Unlock audio synchronously while still inside the user submit gesture.
-    unlockAudioContext();
-
-    void (async () => {
-      generating = true;
-      els.promptInput.disabled = true;
-      els.generateBtn.disabled = true;
-      els.generateBtn.textContent = "...";
-      setStatus("GENERANDO...");
-
-      try {
-        const res = await fetch("/api/lofi", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt }),
-        });
-        const payload = (await res.json().catch(() => ({}))) as { track?: LofiTrack; error?: string };
-        if (!res.ok || !payload.track) {
-          setStatus(payload.error ? "ERROR AL GENERAR" : "SIN RESPUESTA", true);
-          return;
-        }
-
-        const entry: HistoryEntry = { track: payload.track, shareId: null };
-        historyEntries.splice(historyIndex + 1);
-        historyEntries.push(entry);
-        historyIndex = historyEntries.length - 1;
-        loadEntry(entry);
-
-        const eng = await ensureEngine();
-        if (eng && !playing) {
-          eng.play();
-        }
-        setStatus("LISTO");
-        window.setTimeout(() => {
-          if (!generating) setStatus("");
-        }, 1800);
-      } catch {
-        setStatus("ERROR DE RED", true);
-      } finally {
-        generating = false;
-        els.promptInput.disabled = false;
-        els.generateBtn.disabled = false;
-        els.generateBtn.textContent = "GEN";
-      }
-    })();
+  els.chips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const prompt = chip.dataset.prompt ?? "";
+      if (!prompt || generating) return;
+      els.promptInput.value = prompt;
+      generateFromPrompt(prompt);
+    });
   });
 
   function copyShareLink(): void {
     void navigator.clipboard
       ?.writeText(window.location.href)
       .then(() => {
-        els.track.textContent = "LINK COPIADO";
+        els.trackText.textContent = t().linkCopied;
         window.setTimeout(() => renderTrackInfo(), 1200);
       })
       .catch(() => {
         // Clipboard denied: the address bar still holds the `?t=` link.
-        setStatus("NO SE PUDO COPIAR", true);
+        setStatus(t().copyFailed, true);
       });
   }
 
   // Share button (S11): first click saves the track to the cache and copies
-  // the `?t=<id>` link; later clicks copy directly. Idle bar: no-op.
+  // the `?t=<id>` link; later clicks copy directly.
   els.track.addEventListener("click", () => {
     if (!track || sharing) return;
     const entry = historyEntries[historyIndex];
@@ -389,7 +649,7 @@
         return;
       }
       sharing = true;
-      els.track.textContent = "GUARDANDO...";
+      els.trackText.textContent = t().saving;
       try {
         const res = await fetch("/api/tracks", {
           method: "POST",
@@ -399,7 +659,7 @@
         const payload = (await res.json().catch(() => ({}))) as { id?: string; error?: string };
         if (!res.ok || !payload.id) {
           setStatus(
-            res.status === 429 ? "DEMASIADO RÁPIDO" : res.status === 503 ? "SIN CACHE" : "ERROR AL GUARDAR",
+            res.status === 429 ? t().tooFast : res.status === 503 ? t().noCache : t().saveError,
             true,
           );
           return;
@@ -408,7 +668,7 @@
         syncTrackUrl(entry.shareId);
         copyShareLink();
       } catch {
-        setStatus("ERROR DE RED", true);
+        setStatus(t().netError, true);
       } finally {
         sharing = false;
         renderTrackInfo();
@@ -417,11 +677,14 @@
   });
 
   els.mute.addEventListener("click", () => {
-    volumeIndex = (volumeIndex + 1) % VOLUME_LEVELS.length;
-    fx = { ...fx, volume: VOLUME_LEVELS[volumeIndex] };
-    window.localStorage.setItem("lofi-volume", String(fx.volume));
-    updateFxUI();
-    engine?.setFx(fx);
+    setVolume(fx.volume <= 0.001 ? lastNonZeroVolume : 0);
+  });
+
+  els.volBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const level = Number(btn.dataset.volLevel);
+      if (Number.isFinite(level)) setVolume(level);
+    });
   });
 
   els.exportBtn.addEventListener("click", () => {
@@ -432,11 +695,21 @@
     })();
   });
 
+  // Sync player copy with Layout's ES / EN switcher (documentElement.lang).
+  const langObserver = new MutationObserver(() => {
+    applyI18n();
+  });
+  langObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["lang"],
+  });
+
   // ClientRouter (View Transitions): stop cleanly on navigation.
   document.addEventListener("astro:before-swap", () => {
     engine?.stop();
   });
 
+  applyI18n();
   renderTrackInfo();
   updateFxUI();
   updatePlayingUI();
@@ -465,7 +738,7 @@
         historyEntries.push(entry);
         historyIndex = historyEntries.length - 1;
         loadEntry(entry);
-        setStatus("PISTA COMPARTIDA");
+        setStatus(t().sharedTrack);
         window.setTimeout(() => {
           if (!generating) setStatus("");
         }, 2500);
@@ -473,12 +746,12 @@
       }
       if (res.status === 404) {
         syncTrackUrl(null); // the link is dead — clean it from the address bar
-        setStatus("PISTA EXPIRADA", true);
+        setStatus(t().expiredTrack, true);
       } else {
-        setStatus(res.status === 503 ? "SIN CACHE" : "ERROR AL CARGAR", true);
+        setStatus(res.status === 503 ? t().noCache : t().loadError, true);
       }
     } catch {
-      setStatus("ERROR DE RED", true);
+      setStatus(t().netError, true);
     }
   }
 
