@@ -1,47 +1,12 @@
 import type { APIRoute } from "astro";
 import { getUpstashConfig, isTrackId, loadSharedTrack } from "../../../lib/lofi/track-store";
+import { checkRateLimit, getClientIp } from "../../../lib/lofi/rate-limit";
 
 export const prerender = false;
 
 // Reads get a wider budget than writes: refreshing a shared link page counts
 // here, and a viral link must not lock readers out after a few refreshes.
-const READ_RATE_LIMIT_MAX = 30;
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const rateLimitStore = new Map<string, number[]>();
-
-function getClientIp(request: Request, clientAddress?: string): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-  return clientAddress || "unknown";
-}
-
-function checkRateLimit(ip: string, now = Date.now()): { allowed: boolean; retryAfterSec: number } {
-  const cutoff = now - RATE_LIMIT_WINDOW_MS;
-  const recent = (rateLimitStore.get(ip) ?? []).filter((ts) => ts > cutoff);
-  if (recent.length >= READ_RATE_LIMIT_MAX) {
-    const oldest = recent[0];
-    const retryAfterSec = Math.max(1, Math.ceil((oldest + RATE_LIMIT_WINDOW_MS - now) / 1000));
-    rateLimitStore.set(ip, recent);
-    return { allowed: false, retryAfterSec };
-  }
-  recent.push(now);
-  rateLimitStore.set(ip, recent);
-
-  // Opportunistic cleanup to avoid unbounded map growth.
-  if (rateLimitStore.size > 500) {
-    for (const [key, timestamps] of rateLimitStore) {
-      const alive = timestamps.filter((ts) => ts > cutoff);
-      if (alive.length === 0) rateLimitStore.delete(key);
-      else rateLimitStore.set(key, alive);
-    }
-  }
-  return { allowed: true, retryAfterSec: 0 };
-}
+const READ_RATE_LIMIT = { keyPrefix: "lofi:read", max: 30, windowMs: 10 * 60 * 1000 };
 
 function jsonResponse(body: Record<string, unknown>, status: number, extraHeaders?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
@@ -67,7 +32,7 @@ export const GET: APIRoute = async ({ params, request, clientAddress }) => {
   }
 
   const ip = getClientIp(request, clientAddress);
-  const limit = checkRateLimit(ip);
+  const limit = await checkRateLimit(ip, READ_RATE_LIMIT);
   if (!limit.allowed) {
     return jsonResponse(
       { error: "Too many requests. Please wait a bit before retrying." },

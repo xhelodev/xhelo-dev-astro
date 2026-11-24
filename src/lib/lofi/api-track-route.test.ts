@@ -46,11 +46,50 @@ function stubUpstash(result: unknown): Array<unknown[]> {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (_url: unknown, init: RequestInit) => {
-      commands.push(JSON.parse(String(init.body)) as unknown[]);
+      const body = JSON.parse(String(init.body)) as unknown[];
+      // Rate-limit pipelines answer a bare array with count 1 (always
+      // allowed); everything else is captured as before.
+      if (Array.isArray(body[0]) && (body[0] as unknown[])[0] === "INCR") {
+        return new Response(JSON.stringify([{ result: 1 }, { result: 1 }]), { status: 200 });
+      }
+      commands.push(body);
       return new Response(JSON.stringify({ result }), { status: 200 });
     }),
   );
   return commands;
+}
+
+/** Stubs Upstash with a counting rate-limit pipeline: INCR pipelines return a
+ *  per-key increasing count (the real fixed-window behavior), SET commands
+ *  answer `singleResult()`, and other pipelines answer `pipelineResult()`. */
+function stubUpstashCounting(
+  singleResult: () => unknown,
+  pipelineResult: () => unknown,
+): { limiterCalls: Array<string[][]>; commands: Array<unknown[]>; otherPipelines: Array<unknown[][]> } {
+  const limiterCalls: Array<string[][]> = [];
+  const commands: Array<unknown[]> = [];
+  const otherPipelines: Array<unknown[][]> = [];
+  const counts = new Map<string, number>();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: unknown, init: RequestInit) => {
+      const body = JSON.parse(String(init.body)) as unknown[];
+      if (!Array.isArray(body[0])) {
+        commands.push(body);
+        return new Response(JSON.stringify({ result: singleResult() }), { status: 200 });
+      }
+      if ((body[0] as unknown[])[0] !== "INCR") {
+        otherPipelines.push(body as unknown[][]);
+        return new Response(JSON.stringify({ result: pipelineResult() }), { status: 200 });
+      }
+      limiterCalls.push(body as string[][]);
+      const key = String((body[0] as unknown[])[1]);
+      const count = (counts.get(key) ?? 0) + 1;
+      counts.set(key, count);
+      return new Response(JSON.stringify([{ result: count }, { result: 1 }]), { status: 200 });
+    }),
+  );
+  return { limiterCalls, commands, otherPipelines };
 }
 
 /** Removes the Upstash env from both sources so the "not configured" path runs. */
@@ -128,7 +167,11 @@ describe("POST /api/tracks", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_url: unknown, init: RequestInit) => {
-        commands.push(JSON.parse(String(init.body)) as unknown[]);
+        const body = JSON.parse(String(init.body)) as unknown[];
+        if (Array.isArray(body[0]) && (body[0] as unknown[])[0] === "INCR") {
+          return new Response(JSON.stringify([{ result: 1 }, { result: 1 }]), { status: 200 });
+        }
+        commands.push(body);
         return new Response(JSON.stringify({ result: commands.length > 1 ? "OK" : null }), { status: 200 });
       }),
     );
@@ -149,8 +192,8 @@ describe("POST /api/tracks", () => {
     expect(res.status).toBe(502);
   });
 
-  it("answers 429 with Retry-After past the write rate limit", async () => {
-    stubUpstash("OK");
+  it("answers 429 with Retry-After past the distributed write rate limit", async () => {
+    const { limiterCalls, commands } = stubUpstashCounting(() => "OK", () => null);
     const ip = "10.1.9.9";
 
     for (let i = 0; i < 10; i++) {
@@ -162,6 +205,10 @@ describe("POST /api/tracks", () => {
 
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toMatch(/^\d+$/);
+    // The budget lives in Upstash: 11 counted attempts, only 10 stores.
+    expect(limiterCalls.length).toBe(11);
+    expect(commands.length).toBe(10);
+    expect(limiterCalls[0]?.[0]?.[1]).toBe(`rl:lofi:share:${ip}:${Math.floor(Date.now() / 600_000)}`);
   });
 });
 
@@ -228,9 +275,12 @@ describe("GET /api/tracks/[id]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("answers 429 past the read rate limit", async () => {
+  it("answers 429 with Retry-After past the distributed read rate limit", async () => {
     const track = makeTrack();
-    stubUpstash([{ result: JSON.stringify(track) }, { result: 1 }]);
+    const { limiterCalls, otherPipelines } = stubUpstashCounting(
+      () => null,
+      () => [{ result: JSON.stringify(track) }, { result: 1 }],
+    );
     const ip = "10.2.9.9";
 
     for (let i = 0; i < 30; i++) {
@@ -242,5 +292,9 @@ describe("GET /api/tracks/[id]", () => {
 
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toMatch(/^\d+$/);
+    // 31 counted attempts; the blocked one never loads the track.
+    expect(limiterCalls.length).toBe(31);
+    expect(otherPipelines.length).toBe(30);
+    expect(limiterCalls[0]?.[0]?.[1]).toBe(`rl:lofi:read:${ip}:${Math.floor(Date.now() / 600_000)}`);
   });
 });
