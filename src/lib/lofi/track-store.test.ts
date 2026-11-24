@@ -18,17 +18,21 @@ function cloneTrack(): LofiTrack {
   return JSON.parse(JSON.stringify(generateLofiTrack("validation-fixture"))) as LofiTrack;
 }
 
-/** Stub global fetch with an Upstash-shaped JSON response. */
-function stubUpstash(result: unknown, status = 200): Array<unknown[]> {
+/** Stub global fetch with an Upstash-shaped JSON response; captures the
+ *  request URLs so tests can pin the real endpoint layout ("/" for single
+ *  commands, "/pipeline" for pipelines). */
+function stubUpstash(result: unknown, status = 200): { commands: Array<unknown[]>; urls: string[] } {
   const commands: Array<unknown[]> = [];
+  const urls: string[] = [];
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (_url: unknown, init: RequestInit) => {
+    vi.fn(async (url: unknown, init: RequestInit) => {
+      urls.push(String(url));
       commands.push(JSON.parse(String(init.body)) as unknown[]);
       return new Response(JSON.stringify({ result }), { status });
     }),
   );
-  return commands;
+  return { commands, urls };
 }
 
 describe("validateLofiTrack", () => {
@@ -180,13 +184,14 @@ describe("saveSharedTrack", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("stores with SET EX NX and returns the id", async () => {
-    const commands = stubUpstash("OK");
+    const { commands, urls } = stubUpstash("OK");
     const track = cloneTrack();
 
     const id = await saveSharedTrack(CONFIG, track);
 
     expect(id).toMatch(/^[0-9a-f]{12}$/);
     expect(commands.length).toBe(1);
+    expect(urls[0]).toBe(CONFIG.url);
     expect(commands[0]).toEqual([
       "SET",
       `lofi:t:${id}`,
@@ -234,6 +239,14 @@ describe("saveSharedTrack", () => {
     stubUpstash(null);
     expect(await saveSharedTrack(CONFIG, cloneTrack())).toBeNull();
   });
+
+  it("returns null when Upstash answers 200 with an error body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ error: "ERR unsupported arg type" }), { status: 200 })),
+    );
+    expect(await saveSharedTrack(CONFIG, cloneTrack())).toBeNull();
+  });
 });
 
 describe("loadSharedTrack", () => {
@@ -241,12 +254,13 @@ describe("loadSharedTrack", () => {
 
   it("reads and refreshes the TTL in one pipeline (sliding expiry)", async () => {
     const track = cloneTrack();
-    const commands = stubUpstash([JSON.stringify(track), 1]);
+    const { commands, urls } = stubUpstash([{ result: JSON.stringify(track) }, { result: 1 }]);
 
     const loaded = await loadSharedTrack(CONFIG, "a7c0f9e01bd4");
 
     expect(loaded).toEqual(track);
     expect(commands.length).toBe(1);
+    expect(urls[0]).toBe(`${CONFIG.url}/pipeline`);
     expect(commands[0]).toEqual([
       ["GET", "lofi:t:a7c0f9e01bd4"],
       ["EXPIRE", "lofi:t:a7c0f9e01bd4", String(TRACK_TTL_SECONDS)],
@@ -254,19 +268,27 @@ describe("loadSharedTrack", () => {
   });
 
   it("returns null when the key is gone (expired or never existed)", async () => {
-    stubUpstash([null, 0]);
+    stubUpstash([{ result: null }, { result: 0 }]);
     expect(await loadSharedTrack(CONFIG, "a7c0f9e01bd4")).toBeNull();
   });
 
   it("returns null when the cached JSON is corrupted", async () => {
-    stubUpstash(["{not json", 1]);
+    stubUpstash([{ result: "{not json" }, { result: 1 }]);
     expect(await loadSharedTrack(CONFIG, "a7c0f9e01bd4")).toBeNull();
   });
 
   it("returns null when the cached payload fails validation", async () => {
     const track = cloneTrack();
     track.tracks.melody[0]!.midi = 999;
-    stubUpstash([JSON.stringify(track), 1]);
+    stubUpstash([{ result: JSON.stringify(track) }, { result: 1 }]);
+    expect(await loadSharedTrack(CONFIG, "a7c0f9e01bd4")).toBeNull();
+  });
+
+  it("returns null when Upstash answers 200 with an error body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ error: "ERR unsupported arg type" }), { status: 200 })),
+    );
     expect(await loadSharedTrack(CONFIG, "a7c0f9e01bd4")).toBeNull();
   });
 

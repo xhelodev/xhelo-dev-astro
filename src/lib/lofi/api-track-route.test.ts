@@ -198,7 +198,7 @@ describe("GET /api/tracks/[id]", () => {
 
   it("returns the track and refreshes its TTL in the same pipeline", async () => {
     const track = makeTrack();
-    const commands = stubUpstash([JSON.stringify(track), 1]);
+    const commands = stubUpstash([{ result: JSON.stringify(track) }, { result: 1 }]);
 
     const res = await GET(getContext("a7c0f9e01bd4", "10.2.0.3"));
     const payload = (await res.json()) as { track?: LofiTrack };
@@ -213,7 +213,7 @@ describe("GET /api/tracks/[id]", () => {
   });
 
   it("returns 404 when the track expired or never existed", async () => {
-    stubUpstash([null, 0]);
+    stubUpstash([{ result: null }, { result: 0 }]);
 
     const res = await GET(getContext("a7c0f9e01bd4", "10.2.0.4"));
 
@@ -221,7 +221,7 @@ describe("GET /api/tracks/[id]", () => {
   });
 
   it("returns 404 on a corrupted cache payload", async () => {
-    stubUpstash(["{not json", 1]);
+    stubUpstash([{ result: "{not json" }, { result: 1 }]);
 
     const res = await GET(getContext("a7c0f9e01bd4", "10.2.0.5"));
 
@@ -230,7 +230,7 @@ describe("GET /api/tracks/[id]", () => {
 
   it("answers 429 past the read rate limit", async () => {
     const track = makeTrack();
-    stubUpstash([JSON.stringify(track), 1]);
+    stubUpstash([{ result: JSON.stringify(track) }, { result: 1 }]);
     const ip = "10.2.9.9";
 
     for (let i = 0; i < 30; i++) {

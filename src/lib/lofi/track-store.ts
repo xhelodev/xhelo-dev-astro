@@ -107,29 +107,52 @@ export function getUpstashConfig(): UpstashConfig | null {
   return { url, token };
 }
 
-/** Runs one REST command; null on any transport/upstream failure. */
-async function upstashRequest(config: UpstashConfig, body: string): Promise<unknown> {
+/** Runs one REST request against `config.url + path`; null on any
+ *  transport failure, non-2xx status, or command error. Upstash answers
+ *  command errors as HTTP 200 + {"error": ...} — those are logged, never
+ *  swallowed silently (a silent null here reads as "track expired" to the
+ *  caller). */
+async function upstashRequest(config: UpstashConfig, path: string, body: string): Promise<unknown> {
+  const label = path || "/";
   try {
-    const res = await fetch(config.url, {
+    const res = await fetch(`${config.url}${path}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${config.token}` },
       body,
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { result?: unknown };
-    return data.result ?? null;
-  } catch {
+    if (!res.ok) {
+      console.error(`[track-store] Upstash ${label} failed: HTTP ${res.status}`);
+      return null;
+    }
+    const data = (await res.json()) as unknown;
+    if (Array.isArray(data)) return data; // /pipeline: one {result} object per command
+    const record = data as { result?: unknown; error?: string } | null;
+    if (record && typeof record === "object" && typeof record.error === "string") {
+      console.error(`[track-store] Upstash ${label} command error: ${record.error}`);
+      return null;
+    }
+    return record?.result ?? null;
+  } catch (err) {
+    console.error(`[track-store] Upstash ${label} request failed:`, err);
     return null;
   }
 }
 
 export async function upstashCommand<T>(config: UpstashConfig, command: string[]): Promise<T | null> {
-  return (await upstashRequest(config, JSON.stringify(command))) as T | null;
+  return (await upstashRequest(config, "", JSON.stringify(command))) as T | null;
 }
 
-export async function upstashPipeline<T>(config: UpstashConfig, commands: string[][]): Promise<T | null> {
-  return (await upstashRequest(config, JSON.stringify(commands))) as T | null;
+/** Pipelines POST to `/pipeline` (the root endpoint rejects array-of-array
+ *  bodies with `ERR unsupported arg type`) and answer with a bare array of
+ *  per-command `{ result }` objects. */
+export async function upstashPipeline(
+  config: UpstashConfig,
+  commands: string[][],
+): Promise<Array<{ result?: unknown }> | null> {
+  const data = await upstashRequest(config, "/pipeline", JSON.stringify(commands));
+  if (!Array.isArray(data)) return null;
+  return data as Array<{ result?: unknown }>;
 }
 
 // ---- Share operations ------------------------------------------------------
@@ -157,11 +180,11 @@ export async function saveSharedTrack(config: UpstashConfig, track: LofiTrack): 
  *  (`GET` + `EXPIRE`). Null when missing/expired, corrupted, or invalid. */
 export async function loadSharedTrack(config: UpstashConfig, id: string): Promise<LofiTrack | null> {
   const key = trackKey(id);
-  const result = await upstashPipeline<[string | null, number]>(config, [
+  const results = await upstashPipeline(config, [
     ["GET", key],
     ["EXPIRE", key, String(TRACK_TTL_SECONDS)],
   ]);
-  const stored = Array.isArray(result) ? result[0] : null;
+  const stored = results?.[0]?.result ?? null;
   if (typeof stored !== "string") return null;
   try {
     return validateLofiTrack(JSON.parse(stored));
