@@ -9,6 +9,12 @@ import icon from "astro-icon";
 export default defineConfig({
   adapter: vercel(),
 
+  // Astro's default HTML compression strips whitespace-only text nodes that
+  // contain newlines — even between INLINE elements (<strong>…), which jams
+  // words in the rendered copy ("rendimiento,escalabilidad"). Disable it;
+  // the size cost is a few KB.
+  compressHTML: false,
+
   vite: {
       plugins: [tailwindcss()],
   },
