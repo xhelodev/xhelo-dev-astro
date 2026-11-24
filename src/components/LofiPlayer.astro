@@ -1,69 +1,69 @@
 ---
-// LofiPlayer — vanilla Astro island (S8). Framework-free markup here; the
-// bundled <script> owns state. Audio modules load lazily on first interaction.
+// LofiPlayer — compact vanilla Astro island bar (S8, revised per L11).
+// Framework-free markup; the bundled <script> owns state. Audio modules load
+// lazily on first interaction.
 ---
 
-<section id="lofi-player" class="mb-10" aria-label="Generador de música lofi">
-  <div class="flex items-start justify-between gap-4 mb-4">
-    <div>
-      <h2 class="text-xl font-semibold tracking-tight">Lofi Generator</h2>
-      <p id="lofi-readout" class="text-[var(--fg-muted)] text-sm mt-1">generando…</p>
-    </div>
-    <span
-      id="lofi-status"
-      class="text-xs px-2 py-1 rounded-full border border-[var(--border)] text-[var(--fg-faint)] shrink-0"
-      role="status"
-    >detenida</span>
-  </div>
+<section
+  id="lofi-player"
+  class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-[var(--border)] px-3 py-2.5"
+  aria-label="Generador de música lofi"
+>
+  <button
+    id="lofi-play"
+    type="button"
+    class="px-4 py-2 rounded-full bg-[var(--accent)] text-[var(--bg)] text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors min-h-11"
+  >Reproducir</button>
 
-  <div class="flex flex-wrap items-center gap-2 mb-4">
-    <code id="lofi-seed" class="text-sm px-3 py-1.5 rounded-lg bg-[var(--badge-bg)] text-[var(--fg)]">seed</code>
-    <button
-      id="lofi-copy"
-      type="button"
-      class="text-sm px-3 py-1.5 rounded-lg border border-[var(--border-strong)] text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors"
-    >Copiar link</button>
-  </div>
+  <code id="lofi-seed" class="text-xs px-2 py-1 rounded bg-[var(--badge-bg)] text-[var(--fg)]">seed</code>
+  <button
+    id="lofi-copy"
+    type="button"
+    aria-label="Copiar link de esta pista"
+    title="Copiar link"
+    class="text-sm text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors min-h-11 min-w-11 inline-flex items-center justify-center"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+  </button>
 
-  <div class="flex flex-wrap items-center gap-3 mb-5">
-    <button
-      id="lofi-play"
-      type="button"
-      class="px-5 py-2.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] font-medium hover:bg-[var(--accent-hover)] transition-colors min-h-11"
-    >Reproducir</button>
-    <button
-      id="lofi-regen"
-      type="button"
-      class="px-4 py-2.5 rounded-lg border border-[var(--border-strong)] text-[var(--fg)] hover:bg-[var(--badge-bg)] transition-colors min-h-11"
-    >Nueva pista</button>
-    <button
-      id="lofi-export"
-      type="button"
-      class="px-4 py-2.5 rounded-lg border border-[var(--border-strong)] text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11"
-      title="Exporta la composición (notas, swing, velocidades), no el audio sintetizado"
-    >Descargar .mid</button>
-  </div>
+  <span id="lofi-readout" class="text-xs text-[var(--fg-muted)] whitespace-nowrap">generando…</span>
+  <span
+    id="lofi-status"
+    role="status"
+    class="text-[10px] px-2 py-0.5 rounded-full border border-[var(--border)] text-[var(--fg-faint)]"
+  >detenida</span>
 
-  <div class="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-[var(--fg-muted)]">
-    <button id="lofi-crackle" type="button" aria-pressed="true" class="hover:text-[var(--fg)] transition-colors">
-      <span aria-hidden="true">vinilo&nbsp;</span><span id="lofi-crackle-state">on</span>
-    </button>
-    <button id="lofi-wobble" type="button" aria-pressed="true" class="hover:text-[var(--fg)] transition-colors">
-      <span aria-hidden="true">cinta&nbsp;</span><span id="lofi-wobble-state">on</span>
-    </button>
-    <label class="flex items-center gap-2">
-      <span>volumen</span>
-      <input
-        id="lofi-volume"
-        type="range"
-        min="0"
-        max="100"
-        value="80"
-        class="accent-[var(--accent)] w-28"
-        aria-label="Volumen"
-      />
-    </label>
-  </div>
+  <span class="flex-1" aria-hidden="true"></span>
+
+  <button
+    id="lofi-regen"
+    type="button"
+    class="text-xs px-3 py-2 rounded-lg border border-[var(--border-strong)] text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11"
+  >nueva</button>
+
+  <button id="lofi-crackle" type="button" aria-pressed="true" class="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11 px-1">
+    vinilo&nbsp;<span id="lofi-crackle-state">on</span>
+  </button>
+  <button id="lofi-wobble" type="button" aria-pressed="true" class="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11 px-1">
+    cinta&nbsp;<span id="lofi-wobble-state">on</span>
+  </button>
+
+  <input
+    id="lofi-volume"
+    type="range"
+    min="0"
+    max="100"
+    value="80"
+    class="accent-[var(--accent)] w-20 min-h-11"
+    aria-label="Volumen"
+  />
+
+  <button
+    id="lofi-export"
+    type="button"
+    class="text-xs px-2.5 py-2 rounded-lg border border-[var(--border-strong)] text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11"
+    title="Exporta la composición (notas, swing, velocidades), no el audio sintetizado"
+  >.mid</button>
 </section>
 
 <script>
@@ -181,8 +181,8 @@
 
   els.copy.addEventListener("click", () => {
     void navigator.clipboard?.writeText(window.location.href).then(() => {
-      els.copy.textContent = "¡Copiado!";
-      window.setTimeout(() => (els.copy.textContent = "Copiar link"), 1500);
+      els.copy.title = "¡Copiado!";
+      window.setTimeout(() => (els.copy.title = "Copiar link"), 1500);
     });
   });
 
@@ -204,7 +204,7 @@
   });
 
   // ClientRouter (View Transitions) is active site-wide: stop cleanly on
-  // navigation away from this page (S8).
+  // navigation away (S8).
   document.addEventListener("astro:before-swap", () => {
     engine?.stop();
   });

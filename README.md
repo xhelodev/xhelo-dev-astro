@@ -44,10 +44,10 @@ All commands are run from the root of the project, from a terminal:
 
 ## 🎵 Lofi MIDI Generator
 
-`/lofi` hosts a seeded, client-side lofi hip-hop generator: the same seed always
-produces the same track (share it via the `?seed=` URL), audio is synthesized
-live with the Web Audio API, and the composition can be downloaded as a
-General MIDI `.mid` (loops 4×) for any DAW.
+The home page embeds a compact bar player: the same seed always produces the
+same track (share it via the `?seed=` URL), audio is synthesized live with the
+Web Audio API in a latin dreamy lofi/trap style, and the composition can be
+downloaded as a General MIDI `.mid` (loops 4×) for any DAW.
 
 - `src/lib/lofi/generator.ts` — pure deterministic composition (seed → PRNG → chords/bass/drums/melody with swing, strum and laid-back snares baked into fractional beats)
 - `src/lib/lofi/audio-engine.ts` — browser-only Web Audio engine (lookahead scheduler, FM electric piano, synthesized drums, tape wobble, vinyl crackle, saturation)

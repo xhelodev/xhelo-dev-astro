@@ -2,6 +2,7 @@
 import Layout from "../layouts/Layout.astro";
 import { Image } from "astro:assets";
 import profilePic from "../assets/yo.jpeg";
+import LofiPlayer from "../components/LofiPlayer.astro";
 ---
 
 <Layout>
@@ -197,5 +198,20 @@ import profilePic from "../assets/yo.jpeg";
         <strong>AI Integration</strong> — LLM models, intelligent automation, data pipelines
       </li>
     </ul>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- Lofi -->
+  <section>
+    <h2 class="text-xl font-semibold mb-4">
+      <span x-show="language === 'es'">Lofi</span>
+      <span x-show="language === 'en'">Lofi</span>
+    </h2>
+    <LofiPlayer />
+    <p class="text-[var(--fg-faint)] text-xs mt-3 leading-relaxed">
+      <span x-show="language === 'es'">Cada seed produce siempre la misma pista: compartila con el link. El archivo .mid exporta la composición (notas, swing, velocidades) lista para cualquier DAW — el audio se sintetiza en vivo en tu navegador.</span>
+      <span x-show="language === 'en'">Each seed always produces the same track: share it with the link. The .mid file exports the composition (notes, swing, velocities) ready for any DAW — the audio is synthesized live in your browser.</span>
+    </p>
   </section>
 </Layout>
