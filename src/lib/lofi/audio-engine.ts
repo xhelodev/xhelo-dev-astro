@@ -28,8 +28,9 @@ const LOOKAHEAD_S = 0.2;
 const RAMP_S = 0.012;
 /** How far behind schedule a note may be before the transport resyncs. */
 const RESYNC_GRACE_S = 0.05;
-/** Master volume ceiling (fx.volume 0-1 maps below this). */
-const MASTER_CEILING = 0.9;
+/** Master volume ceiling (fx.volume 0-1 maps below this). Kept conservative
+ *  so the summed buses never drive the saturator into hard clamping. */
+const MASTER_CEILING = 0.7;
 
 interface ScheduledEvent {
   note: NoteEvent;
@@ -43,7 +44,7 @@ function midiToFreq(midi: number): number {
 }
 
 /** Soft tanh saturation curve for the WaveShaper. */
-function tanhCurve(amount = 2.5): Float32Array<ArrayBuffer> {
+function tanhCurve(amount = 1.5): Float32Array<ArrayBuffer> {
   const n = 1024;
   const curve = new Float32Array(n);
   for (let i = 0; i < n; i++) {
@@ -64,10 +65,10 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
   master.gain.value = 0.0001;
 
   const compressor = ctx.createDynamicsCompressor();
-  compressor.threshold.value = -18;
-  compressor.ratio.value = 3;
+  compressor.threshold.value = -24;
+  compressor.ratio.value = 4;
   compressor.attack.value = 0.01;
-  compressor.release.value = 0.25;
+  compressor.release.value = 0.15;
 
   const saturator = ctx.createWaveShaper();
   saturator.curve = tanhCurve();
@@ -205,10 +206,10 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
   function scheduleVoice(event: ScheduledEvent, time: number): void {
     switch (event.track) {
       case "chords":
-        playElectricPiano(event.note, time, duckGain, 0.22);
+        playElectricPiano(event.note, time, duckGain, 0.16);
         break;
       case "melody":
-        playElectricPiano(event.note, time, melodicBus, 0.25);
+        playElectricPiano(event.note, time, melodicBus, 0.18);
         break;
       case "bass":
         playBass(event.note, time);
@@ -266,10 +267,10 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
 
     const voiceFilter = ctx.createBiquadFilter();
     voiceFilter.type = "lowpass";
-    voiceFilter.frequency.value = 350;
+    voiceFilter.frequency.value = 260;
 
     const env = ctx.createGain();
-    const peak = note.velocity * 0.32;
+    const peak = note.velocity * 0.2;
     env.gain.setValueAtTime(0, time);
     env.gain.linearRampToValueAtTime(peak, time + 0.01);
     env.gain.setTargetAtTime(peak * 0.7, time + 0.01, 0.3);
@@ -278,8 +279,10 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     env.gain.setTargetAtTime(0, Math.max(time + 0.05, endTime - 0.03), RAMP_S);
 
     const mix = ctx.createGain();
+    const triangleGain = ctx.createGain();
+    triangleGain.gain.value = 0.4;
     sine.connect(mix);
-    triangle.connect(mix);
+    triangle.connect(triangleGain).connect(mix);
     mix.connect(voiceFilter).connect(env).connect(bassBus);
     sine.start(time);
     triangle.start(time);
@@ -299,18 +302,18 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
   function playKick(note: NoteEvent, time: number): void {
     const osc = ctx.createOscillator();
     osc.type = "sine";
-    osc.frequency.setValueAtTime(140, time);
-    osc.frequency.exponentialRampToValueAtTime(45, time + 0.1);
+    osc.frequency.setValueAtTime(150, time);
+    osc.frequency.exponentialRampToValueAtTime(55, time + 0.1);
     const env = ctx.createGain();
-    env.gain.setValueAtTime(note.velocity * 0.95, time);
+    env.gain.setValueAtTime(note.velocity * 0.5, time);
     env.gain.setTargetAtTime(0, time, 0.09);
     osc.connect(env).connect(drumsBus);
     osc.start(time);
-    osc.stop(time + 0.3);
-    // Light chord-bus ducking on kick (S6).
+    osc.stop(time + 0.22);
+    // Light chord-bus ducking on kick (S6) — ramped, never an abrupt jump.
     const g = duckGain.gain;
-    g.setValueAtTime(0.7, time);
-    g.setTargetAtTime(1, time + 0.03, 0.12);
+    g.setTargetAtTime(0.6, time, 0.01);
+    g.setTargetAtTime(1, time + 0.06, 0.12);
   }
 
   function playSnare(note: NoteEvent, time: number): void {
@@ -320,7 +323,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     bandpass.type = "bandpass";
     bandpass.frequency.value = 1800;
     const noiseEnv = ctx.createGain();
-    noiseEnv.gain.setValueAtTime(note.velocity * 0.35, time);
+    noiseEnv.gain.setValueAtTime(note.velocity * 0.26, time);
     noiseEnv.gain.setTargetAtTime(0, time, 0.06);
     noise.connect(bandpass).connect(noiseEnv).connect(drumsBus);
     noise.start(time);
@@ -330,7 +333,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     body.type = "triangle";
     body.frequency.value = 185;
     const bodyEnv = ctx.createGain();
-    bodyEnv.gain.setValueAtTime(note.velocity * 0.2, time);
+    bodyEnv.gain.setValueAtTime(note.velocity * 0.12, time);
     bodyEnv.gain.setTargetAtTime(0, time, 0.04);
     body.connect(bodyEnv).connect(drumsBus);
     body.start(time);
@@ -344,7 +347,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     highpass.type = "highpass";
     highpass.frequency.value = 7500;
     const env = ctx.createGain();
-    env.gain.setValueAtTime(note.velocity * 0.28, time);
+    env.gain.setValueAtTime(note.velocity * 0.2, time);
     env.gain.setTargetAtTime(0, time, decay);
     noise.connect(highpass).connect(env).connect(drumsBus);
     noise.start(time);
