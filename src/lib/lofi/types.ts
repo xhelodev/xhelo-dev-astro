@@ -26,11 +26,9 @@ export type TrackName = "chords" | "bass" | "melody" | "drums";
 
 export type TrackMap = Record<TrackName, NoteEvent[]>;
 
-/** Master FX toggles the audio engine reads; the UI owns them. */
+/** Master FX the audio engine reads; the UI owns them. */
 export interface FxSettings {
-  crackle: boolean;
-  wobble: boolean;
-  /** Master volume 0.0–1.0. */
+  /** Master volume 0.0–1.0 — the level the engine reads; the UI owns it. */
   volume: number;
 }
 

@@ -31,7 +31,7 @@ const BARS = 4;
 /** Beats per bar (4/4). */
 const BEATS_PER_BAR = 4;
 /** Nominal default FX settings for a fresh track (the UI owns live changes). */
-export const DEFAULT_FX: FxSettings = { crackle: true, wobble: true, volume: 0.8 };
+export const DEFAULT_FX: FxSettings = { volume: 0.8 };
 
 /** Milliseconds -> fractional beats at `bpm`. */
 function msToBeats(ms: number, bpm: number): number {

@@ -22,7 +22,7 @@
         </div>
         <span
           class="font-pixel-label text-xs text-[var(--accent)] shrink-0 hidden sm:inline"
-          title="Sintetizador Web Audio en tiempo real · MIDI generado por IA o seed · cero archivos de audio"
+          title="Sintetizador Web Audio en tiempo real · MIDI generado por IA · cero archivos de audio"
         >8-BIT RADIO</span>
         <button
           id="lofi-track"
@@ -34,14 +34,14 @@
       </div>
 
       <div class="flex items-center gap-1 shrink-0">
-        <button id="lofi-prev" type="button" aria-label="Pista anterior" title="Pista anterior" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-9 min-w-8 inline-flex items-center justify-center">
+        <button id="lofi-prev" type="button" aria-label="Pista anterior" title="Pista anterior" disabled class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-9 min-w-8 inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
         </button>
-        <button id="lofi-play" type="button" aria-label="Reproducir" title="Reproducir / pausar" class="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors min-h-9 min-w-8 inline-flex items-center justify-center">
+        <button id="lofi-play" type="button" aria-label="Reproducir" title="Reproducir / pausar" disabled class="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors min-h-9 min-w-8 inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed">
           <svg id="lofi-icon-play" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
           <svg id="lofi-icon-pause" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="hidden"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
         </button>
-        <button id="lofi-next" type="button" aria-label="Siguiente pista" title="Siguiente pista" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-9 min-w-8 inline-flex items-center justify-center">
+        <button id="lofi-next" type="button" aria-label="Siguiente pista" title="Siguiente pista" disabled class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-9 min-w-8 inline-flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zM16 6h2v12h-2z"/></svg>
         </button>
         <button id="lofi-mute" type="button" aria-label="Volumen" title="Volumen (click para subir)" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-9 inline-flex items-center justify-center gap-[2px] px-1">
@@ -53,9 +53,7 @@
             <span class="lofi-vol-block w-[3px] h-4 bg-[var(--fg-muted)]"></span>
           </span>
         </button>
-        <button id="lofi-crackle" type="button" aria-pressed="true" title="Crackle de vinilo" aria-label="Crackle de vinilo" class="pixel-btn font-pixel-label text-xs px-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)] min-h-8">VIN</button>
-        <button id="lofi-wobble" type="button" aria-pressed="true" title="Wobble de cinta" aria-label="Wobble de cinta" class="pixel-btn font-pixel-label text-xs px-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)] min-h-8">TAPE</button>
-        <button id="lofi-export" type="button" title="Exporta la composición (notas, swing, velocidades), no el audio sintetizado" class="pixel-btn font-pixel-label text-xs px-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)] min-h-8" aria-label="Descargar .mid">.MID</button>
+        <button id="lofi-export" type="button" title="Exporta la composición (notas, swing, velocidades), no el audio sintetizado" disabled class="pixel-btn font-pixel-label text-xs px-1.5 text-[var(--fg-muted)] hover:text-[var(--fg)] min-h-8 disabled:opacity-40 disabled:cursor-not-allowed" aria-label="Descargar .mid">.MID</button>
       </div>
     </div>
 
@@ -80,17 +78,9 @@
 </aside>
 
 <script>
-  import { DEFAULT_FX, generateLofiTrack } from "../lib/lofi/generator";
+  import { DEFAULT_FX } from "../lib/lofi/generator";
   import type { FxSettings, LofiTrack } from "../lib/lofi/types";
   import type { LofiEngine } from "../lib/lofi/audio-engine";
-
-  const SEED_WORDS = ["rainy", "midnight", "velvet", "dusty", "cafe", "tape", "amber", "navy", "neon", "paper"];
-
-  function randomSeed(): string {
-    const word = SEED_WORDS[Math.floor(Math.random() * SEED_WORDS.length)];
-    const n = Math.floor(Math.random() * 1000);
-    return `${word}-${n}`;
-  }
 
   function requireEl<T extends HTMLElement>(id: string): T {
     const el = document.getElementById(id);
@@ -108,8 +98,6 @@
     next: requireEl<HTMLButtonElement>("lofi-next"),
     mute: requireEl<HTMLButtonElement>("lofi-mute"),
     volBlocks: Array.from(document.querySelectorAll<HTMLElement>(".lofi-vol-block")),
-    crackle: requireEl<HTMLButtonElement>("lofi-crackle"),
-    wobble: requireEl<HTMLButtonElement>("lofi-wobble"),
     exportBtn: requireEl<HTMLButtonElement>("lofi-export"),
     iconPlay: requireEl<HTMLElement>("lofi-icon-play"),
     iconPause: requireEl<HTMLElement>("lofi-icon-pause"),
@@ -139,12 +127,11 @@
   let playing = false;
   let generating = false;
 
-  // Track history for prev/next navigation (supports both seed & AI tracks).
-  const initialSeedParam = new URLSearchParams(window.location.search).get("seed");
-  const initialSeed = initialSeedParam && initialSeedParam.trim().length > 0 ? initialSeedParam.trim() : randomSeed();
-  const historyEntries: HistoryEntry[] = [{ track: generateLofiTrack(initialSeed), shareableSeed: initialSeed }];
-  let historyIndex = 0;
-  let track: LofiTrack = historyEntries[0].track;
+  // Track history for prev/next navigation (AI tracks only — L28: the bar
+  // starts idle; nothing exists until the first GEN).
+  const historyEntries: HistoryEntry[] = [];
+  let historyIndex = -1;
+  let track: LofiTrack | null = null;
 
   // Elapsed-time tracking (display only).
   let elapsedMs = 0;
@@ -152,11 +139,11 @@
   let timeTimer: ReturnType<typeof setInterval> | null = null;
 
   function trackName(): string {
-    return `${track.seed.toUpperCase()}.MOD`;
+    return track ? `${track.seed.toUpperCase()}.MOD` : "PROMPT.MOD";
   }
 
   function loopSeconds(): number {
-    return (track.bars * 4 * 60) / track.bpm;
+    return track ? (track.bars * 4 * 60) / track.bpm : 0;
   }
 
   function fmt(seconds: number): string {
@@ -165,10 +152,17 @@
   }
 
   function renderTrackInfo(): void {
-    els.track.textContent = `${trackName()} · ${track.bpm}BPM · ${track.key}`;
+    els.track.textContent = track
+      ? `${trackName()} · ${track.bpm}BPM · ${track.key}`
+      : "PROMPT.MOD · ENVIÁ UN ESTILO";
   }
 
   function renderTime(): void {
+    if (!track) {
+      els.time.textContent = "0:00 / 0:00";
+      els.progress.style.width = "0%";
+      return;
+    }
     const total = loopSeconds();
     const current = playing ? (elapsedMs + (performance.now() - startedAt)) / 1000 : elapsedMs / 1000;
     const looped = current % total;
@@ -215,10 +209,6 @@
   }
 
   function updateFxUI(): void {
-    els.crackle.setAttribute("aria-pressed", String(fx.crackle));
-    els.crackle.style.color = fx.crackle ? "var(--accent)" : "";
-    els.wobble.setAttribute("aria-pressed", String(fx.wobble));
-    els.wobble.style.color = fx.wobble ? "var(--accent)" : "";
     const level = fx.volume;
     els.volBlocks.forEach((block, i) => {
       block.style.background = i < Math.round(level * 5) ? "var(--accent)" : "var(--border)";
@@ -242,7 +232,7 @@
   }
 
   async function ensureEngine(): Promise<LofiEngine | null> {
-    if (!ctx) return null;
+    if (!ctx || !track) return null;
     if (!engine) {
       const { createLofiEngine } = await import("../lib/lofi/audio-engine");
       engine = createLofiEngine(ctx, track, fx);
@@ -262,9 +252,21 @@
     renderTime();
     syncSeedUrl(entry.shareableSeed);
     engine?.setTrack(track);
+    updateNavUI();
+  }
+
+  /** Transport availability follows the history: nothing is playable or
+   *  exportable until the first GEN (L28). */
+  function updateNavUI(): void {
+    const hasTrack = track !== null;
+    els.play.disabled = !hasTrack;
+    els.exportBtn.disabled = !hasTrack;
+    els.prev.disabled = !hasTrack || historyIndex <= 0;
+    els.next.disabled = !hasTrack || historyIndex >= historyEntries.length - 1;
   }
 
   els.play.addEventListener("click", () => {
+    if (!track) return;
     void (async () => {
       if (!unlockAudioContext()) return;
       const eng = await ensureEngine();
@@ -285,14 +287,12 @@
   });
 
   els.next.addEventListener("click", () => {
+    // Navigation only (L28): no seed generation — the AI prompt is the sole
+    // way new tracks enter the history.
     if (historyIndex < historyEntries.length - 1) {
       historyIndex += 1;
-    } else {
-      const seed = randomSeed();
-      historyEntries.push({ track: generateLofiTrack(seed), shareableSeed: seed });
-      historyIndex = historyEntries.length - 1;
+      loadEntry(historyEntries[historyIndex]);
     }
-    loadEntry(historyEntries[historyIndex]);
   });
 
   els.promptForm.addEventListener("submit", (event) => {
@@ -368,20 +368,9 @@
     engine?.setFx(fx);
   });
 
-  els.crackle.addEventListener("click", () => {
-    fx = { ...fx, crackle: !fx.crackle };
-    updateFxUI();
-    engine?.setFx(fx);
-  });
-
-  els.wobble.addEventListener("click", () => {
-    fx = { ...fx, wobble: !fx.wobble };
-    updateFxUI();
-    engine?.setFx(fx);
-  });
-
   els.exportBtn.addEventListener("click", () => {
     void (async () => {
+      if (!track) return;
       const { downloadMidi } = await import("../lib/lofi/midi-export");
       downloadMidi(track);
     })();
@@ -395,7 +384,7 @@
   renderTrackInfo();
   updateFxUI();
   updatePlayingUI();
-  if (!initialSeedParam || initialSeedParam.trim().length === 0) {
-    syncSeedUrl(initialSeed);
-  }
+  updateNavUI();
+  // `?seed=` share links are dead (S4/L28): strip any stale one on load.
+  syncSeedUrl(null);
 </script>
