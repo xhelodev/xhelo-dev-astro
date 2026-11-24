@@ -92,15 +92,22 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
   // Chord ducking: chord voices pass through a gain the kick dips.
   const duckGain = ctx.createGain();
 
-  // Tape wobble: slow LFO modulating a short delay on the melodic bus.
+  // Tape wobble: slow wow LFO + faster flutter modulating a short delay on the
+  // melodic bus (L26: amplified — wow ±7 ms, flutter ±0.6 ms at 6.5 Hz).
   const wobbleDelay = ctx.createDelay(0.05);
   wobbleDelay.delayTime.value = 0.008; // ~8 ms base
   const wobbleLfo = ctx.createOscillator();
-  wobbleLfo.frequency.value = 0.6; // 0.4-1.0 Hz (S6)
+  wobbleLfo.frequency.value = 0.6; // wow, 0.4-1.0 Hz (S6)
   const wobbleDepth = ctx.createGain();
-  wobbleDepth.gain.value = 0; // +/- ~3 ms when on
+  wobbleDepth.gain.value = 0; // +/- ~7 ms when on (L26)
   wobbleLfo.connect(wobbleDepth).connect(wobbleDelay.delayTime);
   wobbleLfo.start();
+  const flutterLfo = ctx.createOscillator();
+  flutterLfo.frequency.value = 6.5; // flutter (L26)
+  const flutterDepth = ctx.createGain();
+  flutterDepth.gain.value = 0; // +/- ~0.6 ms when on (L26)
+  flutterLfo.connect(flutterDepth).connect(wobbleDelay.delayTime);
+  flutterLfo.start();
 
   duckGain.connect(melodicBus);
   melodicBus.connect(wobbleDelay);
@@ -129,9 +136,9 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
   const crackleBandpass = ctx.createBiquadFilter();
   crackleBandpass.type = "bandpass";
   crackleBandpass.frequency.value = 2200; // inside the 1.5-4 kHz band (S6)
-  crackleBandpass.Q.value = 0.7;
+  crackleBandpass.Q.value = 0.5; // wider, more presence (L26)
   const crackleGain = ctx.createGain();
-  crackleGain.gain.value = 0; // ~-26 dB when on
+  crackleGain.gain.value = 0; // ~-13 dB when on (L26)
   crackleSource.connect(crackleBandpass).connect(crackleGain).connect(compressor);
   crackleSource.start();
 
@@ -459,23 +466,37 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     return buffer;
   }
 
-  /** 4 s looped vinyl crackle: brown noise bed + sparse dust impulses (S6). */
+  /** 4 s looped vinyl crackle (L26, amplified): brown rumble + white hiss bed,
+   *  ~60 dust ticks/s and occasional decaying pops. Soft-clipped with tanh. */
   function createCrackleBuffer(context: AudioContext): AudioBuffer {
     const seconds = 4;
-    const buffer = context.createBuffer(1, context.sampleRate * seconds, context.sampleRate);
+    const sr = context.sampleRate;
+    const buffer = context.createBuffer(1, sr * seconds, sr);
     const data = buffer.getChannelData(0);
     let brown = 0;
     for (let i = 0; i < data.length; i++) {
       brown = (brown + (Math.random() * 2 - 1) * 0.02) * 0.998;
-      data[i] = brown;
+      data[i] = brown + (Math.random() * 2 - 1) * 0.3; // white vinyl hiss (L26)
     }
-    const pops = 60;
-    for (let p = 0; p < pops; p++) {
-      const pos = Math.floor(Math.random() * data.length);
-      const amp = 0.2 + Math.random() * 0.4;
-      data[pos] += amp;
-      if (pos + 1 < data.length) data[pos + 1] += amp * 0.5;
+    // Surface dust ticks: ~60/s, 4-sample decaying clicks.
+    const ticks = seconds * 60;
+    for (let t = 0; t < ticks; t++) {
+      const pos = Math.floor(Math.random() * (data.length - 8));
+      const amp = 0.25 + Math.random() * 0.5;
+      for (let k = 0; k < 4; k++) data[pos + k] += amp * Math.pow(1 - k / 4, 2);
     }
+    // Occasional loud pops: every 1.5-4 s, ~5 ms decaying noise burst.
+    let popPos = Math.floor(Math.random() * sr * 1.5);
+    while (popPos < data.length) {
+      const amp = 0.8 + Math.random() * 0.5;
+      const len = Math.floor(sr * 0.005);
+      for (let k = 0; k < len && popPos + k < data.length; k++) {
+        data[popPos + k] += amp * Math.pow(1 - k / len, 2) * (Math.random() * 2 - 1);
+      }
+      popPos += Math.floor(sr * (1.5 + Math.random() * 2.5));
+    }
+    // Soft-clip so bursts never exceed +/-1.
+    for (let i = 0; i < data.length; i++) data[i] = Math.tanh(data[i]);
     return buffer;
   }
 
@@ -558,8 +579,9 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
 
     setFx(next: FxSettings) {
       fx = next;
-      crackleGain.gain.setTargetAtTime(next.crackle ? 0.06 : 0.0001, ctx.currentTime, 0.05);
-      wobbleDepth.gain.setTargetAtTime(next.wobble ? 0.003 : 0.0001, ctx.currentTime, 0.05);
+      crackleGain.gain.setTargetAtTime(next.crackle ? 0.22 : 0.0001, ctx.currentTime, 0.05);
+      wobbleDepth.gain.setTargetAtTime(next.wobble ? 0.007 : 0.0001, ctx.currentTime, 0.05);
+      flutterDepth.gain.setTargetAtTime(next.wobble ? 0.0006 : 0.0001, ctx.currentTime, 0.05);
       master.gain.setTargetAtTime(playing ? fx.volume * MASTER_CEILING : 0.0001, ctx.currentTime, 0.03);
     },
 
@@ -569,6 +591,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
       ctx.removeEventListener("statechange", onContextStateChange);
       try { crackleSource.stop(); } catch { /* already stopped */ }
       try { wobbleLfo.stop(); } catch { /* already stopped */ }
+      try { flutterLfo.stop(); } catch { /* already stopped */ }
       master.disconnect();
       compressor.disconnect();
     },
