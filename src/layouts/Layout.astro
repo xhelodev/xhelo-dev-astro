@@ -3,7 +3,12 @@ import "../styles/global.css";
 import Analytics from "@vercel/analytics/astro";
 import SpeedInsights from "@vercel/speed-insights/astro";
 import { ClientRouter } from "astro:transitions";
-import "@fontsource/inter";
+import "@fontsource/pixelify-sans/400.css";
+import "@fontsource/pixelify-sans/600.css";
+import "@fontsource/instrument-sans/400.css";
+import "@fontsource/instrument-sans/500.css";
+import "@fontsource/silkscreen/400.css";
+import LofiPlayer from "../components/LofiPlayer.astro";
 ---
 
 <html
@@ -29,8 +34,8 @@ import "@fontsource/inter";
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Marcelo Aguirre — Full Stack Developer</title>
-    <meta name="description" content="Senior Fullstack Developer · TypeScript Specialist · Backend-Oriented. Specialized in robust end-to-end architectures, Web3, and AI." />
+    <title>Marcelo Aguirre — AI Engineer</title>
+    <meta name="description" content="AI Engineer · LLM Systems & Autonomous Agents · Fullstack. Agentes autónomos, sistemas RAG y arquitecturas end-to-end." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -48,6 +53,9 @@ import "@fontsource/inter";
   </head>
 
   <body class="min-h-screen antialiased">
+    <!-- Sticky thin pixel music bar (Stitch design) -->
+    <LofiPlayer />
+
     <!-- Top bar: language + theme -->
     <div class="max-w-2xl mx-auto px-4 sm:px-6 pt-6 flex items-center justify-end gap-4 text-sm">
       <div class="flex items-center gap-1">

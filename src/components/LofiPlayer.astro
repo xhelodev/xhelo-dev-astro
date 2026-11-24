@@ -1,70 +1,53 @@
 ---
-// LofiPlayer — compact vanilla Astro island bar (S8, revised per L11).
-// Framework-free markup; the bundled <script> owns state. Audio modules load
-// lazily on first interaction.
+// LofiPlayer — sticky thin pixel music bar (Stitch design, "8-BIT RADIO").
+// Vanilla island: markup here, state in the bundled <script>. Audio modules
+// load lazily on first interaction.
 ---
 
-<section
+<aside
   id="lofi-player"
-  class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-[var(--border)] px-3 py-2.5"
-  aria-label="Generador de música lofi"
+  aria-label="Reproductor de música"
+  class="sticky top-0 z-40 w-full border-b-2 border-[var(--border)] bg-[var(--bg-soft)]"
 >
-  <button
-    id="lofi-play"
-    type="button"
-    class="px-4 py-2 rounded-full bg-[var(--accent)] text-[var(--bg)] text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors min-h-11"
-  >Reproducir</button>
+  <div class="max-w-2xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3 min-w-0">
+      <!-- Pixel equalizer -->
+      <div id="lofi-eq" class="eq-bars flex items-end gap-[3px] h-4 shrink-0" aria-hidden="true">
+        <span class="eq-bar"></span>
+        <span class="eq-bar"></span>
+        <span class="eq-bar"></span>
+        <span class="eq-bar"></span>
+      </div>
+      <span class="font-pixel-label text-[10px] text-[var(--accent)] shrink-0 hidden sm:inline">8-BIT RADIO</span>
+      <button
+        id="lofi-track"
+        type="button"
+        title="Copiar link de esta pista"
+        class="font-pixel-label text-[10px] text-[var(--fg)] truncate hover:text-[var(--accent)] transition-colors min-h-11 py-1"
+      >—</button>
+      <span id="lofi-time" class="font-pixel-label text-[10px] text-[var(--fg-faint)] shrink-0 hidden md:inline">0:00 / 0:00</span>
+    </div>
 
-  <code id="lofi-seed" class="text-xs px-2 py-1 rounded bg-[var(--badge-bg)] text-[var(--fg)]">seed</code>
-  <button
-    id="lofi-copy"
-    type="button"
-    aria-label="Copiar link de esta pista"
-    title="Copiar link"
-    class="text-sm text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors min-h-11 min-w-11 inline-flex items-center justify-center"
-  >
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-  </button>
-
-  <span id="lofi-readout" class="text-xs text-[var(--fg-muted)] whitespace-nowrap">generando…</span>
-  <span
-    id="lofi-status"
-    role="status"
-    class="text-[10px] px-2 py-0.5 rounded-full border border-[var(--border)] text-[var(--fg-faint)]"
-  >detenida</span>
-
-  <span class="flex-1" aria-hidden="true"></span>
-
-  <button
-    id="lofi-regen"
-    type="button"
-    class="text-xs px-3 py-2 rounded-lg border border-[var(--border-strong)] text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11"
-  >nueva</button>
-
-  <button id="lofi-crackle" type="button" aria-pressed="true" class="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11 px-1">
-    vinilo&nbsp;<span id="lofi-crackle-state">on</span>
-  </button>
-  <button id="lofi-wobble" type="button" aria-pressed="true" class="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11 px-1">
-    cinta&nbsp;<span id="lofi-wobble-state">on</span>
-  </button>
-
-  <input
-    id="lofi-volume"
-    type="range"
-    min="0"
-    max="100"
-    value="80"
-    class="accent-[var(--accent)] w-20 min-h-11"
-    aria-label="Volumen"
-  />
-
-  <button
-    id="lofi-export"
-    type="button"
-    class="text-xs px-2.5 py-2 rounded-lg border border-[var(--border-strong)] text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11"
-    title="Exporta la composición (notas, swing, velocidades), no el audio sintetizado"
-  >.mid</button>
-</section>
+    <div class="flex items-center gap-1 shrink-0">
+      <button id="lofi-prev" type="button" aria-label="Pista anterior" title="Pista anterior" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11 min-w-9 inline-flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+      </button>
+      <button id="lofi-play" type="button" aria-label="Reproducir" title="Reproducir / pausar" class="text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors min-h-11 min-w-9 inline-flex items-center justify-center">
+        <svg id="lofi-icon-play" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="lofi-icon-pause" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class="hidden"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+      </button>
+      <button id="lofi-next" type="button" aria-label="Siguiente pista" title="Siguiente pista" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11 min-w-9 inline-flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zM16 6h2v12h-2z"/></svg>
+      </button>
+      <button id="lofi-mute" type="button" aria-label="Silenciar" title="Silenciar" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11 min-w-9 inline-flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
+      </button>
+      <button id="lofi-crackle" type="button" aria-pressed="true" title="Crackle de vinilo" aria-label="Crackle de vinilo" class="font-pixel-label text-[9px] px-1.5 text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors min-h-11">VIN</button>
+      <button id="lofi-wobble" type="button" aria-pressed="true" title="Wobble de cinta" aria-label="Wobble de cinta" class="font-pixel-label text-[9px] px-1.5 text-[var(--fg-faint)] hover:text-[var(--fg)] transition-colors min-h-11">TAPE</button>
+      <button id="lofi-export" type="button" title="Exporta la composición (notas, swing, velocidades), no el audio sintetizado" class="font-pixel-label text-[9px] px-1.5 border border-[var(--border-strong)] text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors min-h-11" aria-label="Descargar .mid">.MID</button>
+    </div>
+  </div>
+</aside>
 
 <script>
   import { DEFAULT_FX, generateLofiTrack } from "../lib/lofi/generator";
@@ -86,32 +69,58 @@
   }
 
   const els = {
+    eq: requireEl<HTMLElement>("lofi-eq"),
+    track: requireEl<HTMLButtonElement>("lofi-track"),
+    time: requireEl<HTMLElement>("lofi-time"),
     play: requireEl<HTMLButtonElement>("lofi-play"),
-    regen: requireEl<HTMLButtonElement>("lofi-regen"),
-    exportBtn: requireEl<HTMLButtonElement>("lofi-export"),
-    copy: requireEl<HTMLButtonElement>("lofi-copy"),
-    seed: requireEl<HTMLElement>("lofi-seed"),
-    readout: requireEl<HTMLElement>("lofi-readout"),
-    status: requireEl<HTMLElement>("lofi-status"),
+    prev: requireEl<HTMLButtonElement>("lofi-prev"),
+    next: requireEl<HTMLButtonElement>("lofi-next"),
+    mute: requireEl<HTMLButtonElement>("lofi-mute"),
     crackle: requireEl<HTMLButtonElement>("lofi-crackle"),
-    crackleState: requireEl<HTMLElement>("lofi-crackle-state"),
     wobble: requireEl<HTMLButtonElement>("lofi-wobble"),
-    wobbleState: requireEl<HTMLElement>("lofi-wobble-state"),
-    volume: requireEl<HTMLInputElement>("lofi-volume"),
+    exportBtn: requireEl<HTMLButtonElement>("lofi-export"),
+    iconPlay: requireEl<HTMLElement>("lofi-icon-play"),
+    iconPause: requireEl<HTMLElement>("lofi-icon-pause"),
   };
 
   let ctx: AudioContext | null = null;
   let engine: LofiEngine | null = null;
   let fx: FxSettings = { ...DEFAULT_FX };
   let playing = false;
+  let lastVolume = fx.volume;
 
+  // Seed history for prev/next navigation.
   const initialSeed = new URLSearchParams(window.location.search).get("seed");
-  let seed = initialSeed && initialSeed.trim().length > 0 ? initialSeed.trim() : randomSeed();
-  let track: LofiTrack = generateLofiTrack(seed);
+  const historySeeds: string[] = [initialSeed && initialSeed.trim().length > 0 ? initialSeed.trim() : randomSeed()];
+  let historyIndex = 0;
+  let track: LofiTrack = generateLofiTrack(historySeeds[0]);
+
+  // Elapsed-time tracking (display only).
+  let elapsedMs = 0;
+  let startedAt = 0;
+  let timeTimer: ReturnType<typeof setInterval> | null = null;
+
+  function trackName(): string {
+    return `${track.seed.toUpperCase()}.MOD`;
+  }
+
+  function loopSeconds(): number {
+    return (track.bars * 4 * 60) / track.bpm;
+  }
+
+  function fmt(seconds: number): string {
+    const s = Math.max(0, Math.floor(seconds));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }
 
   function renderTrackInfo(): void {
-    els.readout.textContent = `${track.bpm} BPM · ${track.key} · swing ${Math.round(track.swing * 100)}%`;
-    els.seed.textContent = track.seed;
+    els.track.textContent = `${trackName()} · ${track.bpm}BPM · ${track.key}`;
+  }
+
+  function renderTime(): void {
+    const total = loopSeconds();
+    const current = playing ? (elapsedMs + (performance.now() - startedAt)) / 1000 : elapsedMs / 1000;
+    els.time.textContent = `${fmt(current % total)} / ${fmt(total)}`;
   }
 
   function syncSeedUrl(): void {
@@ -121,29 +130,48 @@
   }
 
   function updatePlayingUI(): void {
-    els.play.textContent = playing ? "Pausar" : "Reproducir";
-    els.status.textContent = playing ? "sonando" : "detenida";
+    els.iconPlay.classList.toggle("hidden", playing);
+    els.iconPause.classList.toggle("hidden", !playing);
+    els.play.setAttribute("aria-label", playing ? "Pausar" : "Reproducir");
+    els.eq.classList.toggle("eq-playing", playing);
+    if (playing) {
+      startedAt = performance.now();
+      if (timeTimer === null) timeTimer = setInterval(renderTime, 500);
+    } else {
+      if (timeTimer !== null) {
+        clearInterval(timeTimer);
+        timeTimer = null;
+      }
+      renderTime();
+    }
   }
 
   function updateFxUI(): void {
     els.crackle.setAttribute("aria-pressed", String(fx.crackle));
-    els.crackleState.textContent = fx.crackle ? "on" : "off";
+    els.crackle.style.color = fx.crackle ? "var(--accent)" : "";
     els.wobble.setAttribute("aria-pressed", String(fx.wobble));
-    els.wobbleState.textContent = fx.wobble ? "on" : "off";
+    els.wobble.style.color = fx.wobble ? "var(--accent)" : "";
+    els.mute.style.opacity = fx.volume === 0 ? "0.5" : "1";
+  }
+
+  function loadSeed(seed: string): void {
+    track = generateLofiTrack(seed);
+    elapsedMs = 0;
+    renderTrackInfo();
+    renderTime();
+    syncSeedUrl();
+    engine?.setTrack(track);
   }
 
   els.play.addEventListener("click", () => {
     void (async () => {
-      // iOS Safari (S8): create and resume the AudioContext SYNCHRONOUSLY
-      // inside the gesture handler, BEFORE any await import(...).
+      // iOS Safari: create and resume the AudioContext SYNCHRONOUSLY inside
+      // the gesture handler, BEFORE any await import(...).
       if (!ctx) {
         const Ctor =
           window.AudioContext ??
           (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (!Ctor) {
-          els.status.textContent = "audio no soportado";
-          return;
-        }
+        if (!Ctor) return;
         ctx = new Ctor();
       }
       if (ctx.state === "suspended") void ctx.resume();
@@ -152,6 +180,7 @@
         const { createLofiEngine } = await import("../lib/lofi/audio-engine");
         engine = createLofiEngine(ctx, track, fx);
         engine.onStateChange = (isPlaying) => {
+          if (!isPlaying && playing) elapsedMs += performance.now() - startedAt;
           playing = isPlaying;
           updatePlayingUI();
         };
@@ -164,26 +193,41 @@
     })();
   });
 
-  els.regen.addEventListener("click", () => {
-    seed = randomSeed();
-    track = generateLofiTrack(seed);
-    syncSeedUrl();
-    renderTrackInfo();
-    engine?.setTrack(track);
+  els.prev.addEventListener("click", () => {
+    if (historyIndex > 0) {
+      historyIndex -= 1;
+      loadSeed(historySeeds[historyIndex]);
+    }
   });
 
-  els.exportBtn.addEventListener("click", () => {
-    void (async () => {
-      const { downloadMidi } = await import("../lib/lofi/midi-export");
-      downloadMidi(track);
-    })();
+  els.next.addEventListener("click", () => {
+    if (historyIndex < historySeeds.length - 1) {
+      historyIndex += 1;
+    } else {
+      historySeeds.push(randomSeed());
+      historyIndex = historySeeds.length - 1;
+    }
+    loadSeed(historySeeds[historyIndex]);
   });
 
-  els.copy.addEventListener("click", () => {
+  els.track.addEventListener("click", () => {
     void navigator.clipboard?.writeText(window.location.href).then(() => {
-      els.copy.title = "¡Copiado!";
-      window.setTimeout(() => (els.copy.title = "Copiar link"), 1500);
+      const name = els.track.textContent;
+      els.track.textContent = "LINK COPIADO";
+      window.setTimeout(() => renderTrackInfo(), 1200);
+      void name;
     });
+  });
+
+  els.mute.addEventListener("click", () => {
+    if (fx.volume > 0) {
+      lastVolume = fx.volume;
+      fx = { ...fx, volume: 0 };
+    } else {
+      fx = { ...fx, volume: lastVolume || DEFAULT_FX.volume };
+    }
+    updateFxUI();
+    engine?.setFx(fx);
   });
 
   els.crackle.addEventListener("click", () => {
@@ -198,13 +242,14 @@
     engine?.setFx(fx);
   });
 
-  els.volume.addEventListener("input", () => {
-    fx = { ...fx, volume: Number(els.volume.value) / 100 };
-    engine?.setFx(fx);
+  els.exportBtn.addEventListener("click", () => {
+    void (async () => {
+      const { downloadMidi } = await import("../lib/lofi/midi-export");
+      downloadMidi(track);
+    })();
   });
 
-  // ClientRouter (View Transitions) is active site-wide: stop cleanly on
-  // navigation away (S8).
+  // ClientRouter (View Transitions): stop cleanly on navigation.
   document.addEventListener("astro:before-swap", () => {
     engine?.stop();
   });
