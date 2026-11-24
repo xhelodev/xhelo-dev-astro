@@ -175,11 +175,11 @@ function buildMelody(
     const interval = fromChordTone
       ? chord.intervals[Math.floor(rng() * chord.intervals.length)]
       : pentatonic[Math.floor(rng() * pentatonic.length)];
-    const base = 67 + ((tonicPc + chord.rootOffset) % 12);
-    const midi = foldToRange(base + interval, 67, 88);
+    const base = 62 + ((tonicPc + chord.rootOffset) % 12);
+    const midi = foldToRange(base + interval, 62, 81);
     const startBeat = slot * 0.5 + msToBeats(rng() * 20, bpm); // gentle humanization
     const durationBeats = 0.5 + rng();
-    events.push(note(midi, startBeat, durationBeats, 0.3 + rng() * 0.25));
+    events.push(note(midi, startBeat, durationBeats, 0.26 + rng() * 0.18));
   }
   return events;
 }

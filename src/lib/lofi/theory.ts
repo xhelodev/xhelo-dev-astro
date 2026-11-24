@@ -68,14 +68,15 @@ export const MINOR_PROGRESSIONS: readonly Progression[] = [
   ],
 ];
 
-/** Cuco-style dreamy major pools. */
+/** Cuco-style dreamy major pools — relaxed lush voicings (L19: no altered
+ *  tensions; sus colors instead of #9s). */
 export const MAJOR_PROGRESSIONS: readonly Progression[] = [
-  // ii9 -> V13 -> Imaj9 -> VI7#9 (classic jazz turnaround)
+  // ii9 -> V13 -> Imaj9 -> VI9 (classic dreamy turnaround)
   [
     { rootOffset: 2, intervals: [0, 3, 7, 10, 14] },
     { rootOffset: 7, intervals: [0, 4, 7, 10, 14] },
     { rootOffset: 0, intervals: [0, 4, 7, 11, 14] },
-    { rootOffset: 9, intervals: [0, 4, 7, 10, 15] },
+    { rootOffset: 9, intervals: [0, 4, 7, 10, 14] },
   ],
   // IVmaj7 -> iii7 -> vi9 -> ii9 (nostalgic dreamy vibe)
   [
@@ -84,12 +85,12 @@ export const MAJOR_PROGRESSIONS: readonly Progression[] = [
     { rootOffset: 9, intervals: [0, 3, 7, 10, 14] },
     { rootOffset: 2, intervals: [0, 3, 7, 10, 14] },
   ],
-  // Imaj9 -> vi9 -> ii9 -> V7#9
+  // Imaj9 -> vi9 -> ii9 -> V7sus9 (suspended, relaxed dominant)
   [
     { rootOffset: 0, intervals: [0, 4, 7, 11, 14] },
     { rootOffset: 9, intervals: [0, 3, 7, 10, 14] },
     { rootOffset: 2, intervals: [0, 3, 7, 10, 14] },
-    { rootOffset: 7, intervals: [0, 4, 7, 10, 15] },
+    { rootOffset: 7, intervals: [0, 5, 7, 10, 14] },
   ],
   // IVmaj9 -> iv9 -> Imaj9 -> Imaj9 (minor-iv modal interchange)
   [

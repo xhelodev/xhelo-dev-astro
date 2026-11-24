@@ -76,7 +76,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
 
   const masterLowpass = ctx.createBiquadFilter();
   masterLowpass.type = "lowpass";
-  masterLowpass.frequency.value = 5200; // brightened per L16/L17
+  masterLowpass.frequency.value = 4600; // warm but not dark (L16/L19)
   masterLowpass.Q.value = 0.5;
 
   const mixBus = ctx.createGain();
@@ -98,7 +98,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
   const wobbleLfo = ctx.createOscillator();
   wobbleLfo.frequency.value = 0.6; // 0.4-1.0 Hz (S6)
   const wobbleDepth = ctx.createGain();
-  wobbleDepth.gain.value = 0; // +/- ~2.5 ms when on
+  wobbleDepth.gain.value = 0; // +/- ~3 ms when on
   wobbleLfo.connect(wobbleDepth).connect(wobbleDelay.delayTime);
   wobbleLfo.start();
 
@@ -109,7 +109,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
   const reverb = ctx.createConvolver();
   reverb.buffer = createReverbImpulse(ctx);
   const reverbSend = ctx.createGain();
-  reverbSend.gain.value = 0.25;
+  reverbSend.gain.value = 0.18;
   melodicBus.connect(reverbSend);
   reverbSend.connect(reverb);
   reverb.connect(mixBus);
@@ -291,8 +291,8 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     const env = ctx.createGain();
     const peak = Math.max(0.02, note.velocity * level);
     env.gain.setValueAtTime(0, time);
-    env.gain.linearRampToValueAtTime(peak, time + 0.008);
-    env.gain.setTargetAtTime(peak * 0.6, time + 0.008, 0.4);
+    env.gain.linearRampToValueAtTime(peak, time + 0.02);
+    env.gain.setTargetAtTime(peak * 0.6, time + 0.02, 0.4);
 
     const endTime = time + note.durationBeats * spb;
     env.gain.setTargetAtTime(0, Math.max(time + 0.05, endTime - 0.03), RAMP_S);
@@ -317,19 +317,19 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     modulator.type = "sine";
     modulator.frequency.value = f * 3.5;
     const modIndex = ctx.createGain();
-    modIndex.gain.setValueAtTime(f * 2, time);
-    modIndex.gain.setTargetAtTime(0, time, 0.08);
+    modIndex.gain.setValueAtTime(f * 1.2, time);
+    modIndex.gain.setTargetAtTime(0, time, 0.12);
     modulator.connect(modIndex).connect(carrier.frequency);
 
     const voiceFilter = ctx.createBiquadFilter();
     voiceFilter.type = "lowpass";
-    voiceFilter.frequency.value = 5000;
+    voiceFilter.frequency.value = 3500;
 
     const env = ctx.createGain();
-    const peak = Math.max(0.02, note.velocity * 0.26);
+    const peak = Math.max(0.02, note.velocity * 0.22);
     env.gain.setValueAtTime(0, time);
-    env.gain.linearRampToValueAtTime(peak, time + 0.005);
-    env.gain.setTargetAtTime(0, time + 0.005, 0.35);
+    env.gain.linearRampToValueAtTime(peak, time + 0.012);
+    env.gain.setTargetAtTime(0, time + 0.012, 0.35);
 
     const endTime = time + note.durationBeats * spb;
     carrier.connect(voiceFilter).connect(env).connect(melodicBus);
@@ -429,7 +429,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     highpass.type = "highpass";
     highpass.frequency.value = 7000;
     const env = ctx.createGain();
-    env.gain.setValueAtTime(note.velocity * 0.3, time);
+    env.gain.setValueAtTime(note.velocity * 0.25, time);
     env.gain.setTargetAtTime(0, time, decay);
     noise.connect(highpass).connect(env).connect(drumsBus);
     noise.start(time);
@@ -445,9 +445,9 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     return buffer;
   }
 
-  /** ~1.8 s exponentially-decaying stereo noise impulse for the reverb
-   *  send (L12/L13 — the dreamy ingredient). */
-  function createReverbImpulse(context: AudioContext, seconds = 1.8, decay = 3): AudioBuffer {
+  /** ~1.4 s exponentially-decaying stereo noise impulse for the reverb
+   *  send (L12/L13/L19 — dreamy but not cavernous). */
+  function createReverbImpulse(context: AudioContext, seconds = 1.4, decay = 3): AudioBuffer {
     const length = Math.floor(context.sampleRate * seconds);
     const buffer = context.createBuffer(2, length, context.sampleRate);
     for (let ch = 0; ch < 2; ch++) {
@@ -558,8 +558,8 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
 
     setFx(next: FxSettings) {
       fx = next;
-      crackleGain.gain.setTargetAtTime(next.crackle ? 0.05 : 0.0001, ctx.currentTime, 0.05);
-      wobbleDepth.gain.setTargetAtTime(next.wobble ? 0.0025 : 0.0001, ctx.currentTime, 0.05);
+      crackleGain.gain.setTargetAtTime(next.crackle ? 0.06 : 0.0001, ctx.currentTime, 0.05);
+      wobbleDepth.gain.setTargetAtTime(next.wobble ? 0.003 : 0.0001, ctx.currentTime, 0.05);
       master.gain.setTargetAtTime(playing ? fx.volume * MASTER_CEILING : 0.0001, ctx.currentTime, 0.03);
     },
 
