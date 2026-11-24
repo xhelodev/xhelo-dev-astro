@@ -53,12 +53,12 @@ describe("musical spec ranges (S5/S9)", () => {
     }
   });
 
-  it("chord tones stay within MIDI 48-72", () => {
+  it("chord tones stay within MIDI 50-74", () => {
     for (const track of tracks) {
       expect(track.tracks.chords.length).toBeGreaterThan(0);
       for (const note of track.tracks.chords) {
-        expect(note.midi).toBeGreaterThanOrEqual(48);
-        expect(note.midi).toBeLessThanOrEqual(72);
+        expect(note.midi).toBeGreaterThanOrEqual(50);
+        expect(note.midi).toBeLessThanOrEqual(74);
       }
     }
   });

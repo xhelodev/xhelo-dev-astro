@@ -138,12 +138,12 @@ export function foldToRange(midi: number, lo: number, hi: number): number {
   return note;
 }
 
-/** Voice a chord as a cluster within MIDI 48-72 (drop-2 / rootless flavor):
- *  root folded into [48, 59], upper voices folded into [52, 72]. The caller
- *  may occasionally drop the root for a rootless voicing. */
+/** Voice a chord as a cluster within MIDI 50-74 (drop-2 / rootless flavor,
+ *  brightened per L16/L17): root folded into [50, 61], upper voices folded
+ *  into [55, 74]. The caller may drop the root for a rootless voicing. */
 export function voiceChord(tonicPc: number, chord: ChordSpec): number[] {
-  const root = foldToRange(48 + ((tonicPc + chord.rootOffset) % 12), 48, 59);
-  const upper = chord.intervals.slice(1).map((interval) => foldToRange(root + interval, 52, 72));
+  const root = foldToRange(48 + ((tonicPc + chord.rootOffset) % 12), 50, 61);
+  const upper = chord.intervals.slice(1).map((interval) => foldToRange(root + interval, 55, 74));
   return [...new Set([root, ...upper])].sort((a, b) => a - b);
 }
 

@@ -67,8 +67,9 @@ function buildChords(rng: () => number, tonicPc: number, bpm: number, progressio
   progression.forEach((chord, bar) => {
     const barStart = bar * BEATS_PER_BAR;
     const voicing = voiceChord(tonicPc, chord);
-    // Occasionally drop the lowest voice for a rootless voicing.
-    const tones = voicing.length >= 4 && chance(rng, 0.35) ? voicing.slice(1) : voicing;
+    // Drop the lowest voice half the time for a rootless, lighter voicing
+    // (L17: thins the low-mid buildup).
+    const tones = voicing.length >= 4 && chance(rng, 0.5) ? voicing.slice(1) : voicing;
     tones.forEach((midi, i) => {
       events.push(note(midi, barStart + i * strumBeats, 3.8, jitterVelocity(rng, 0.45)));
     });
@@ -81,8 +82,9 @@ function buildBass(rng: () => number, tonicPc: number, progression: Progression)
   progression.forEach((chord, bar) => {
     const barStart = bar * BEATS_PER_BAR;
     const root = bassRoot(tonicPc, chord);
-    // Deep sub bass (S5/L13): one long sine note holding the root per bar.
-    events.push(note(root, barStart, 3.9, jitterVelocity(rng, 0.6)));
+    // Deep sub bass (S5/L17): shorter notes with air between them — the low
+    // end breathes instead of droning through the whole bar.
+    events.push(note(root, barStart, 1.8, jitterVelocity(rng, 0.55)));
     // Occasional short octave pass at the very end of a bar (folded back
     // into the 36-47 bass register).
     if (chance(rng, 0.25)) {
@@ -173,8 +175,8 @@ function buildMelody(
     const interval = fromChordTone
       ? chord.intervals[Math.floor(rng() * chord.intervals.length)]
       : pentatonic[Math.floor(rng() * pentatonic.length)];
-    const base = 60 + ((tonicPc + chord.rootOffset) % 12);
-    const midi = foldToRange(base + interval, 60, 84);
+    const base = 67 + ((tonicPc + chord.rootOffset) % 12);
+    const midi = foldToRange(base + interval, 67, 88);
     const startBeat = slot * 0.5 + msToBeats(rng() * 20, bpm); // gentle humanization
     const durationBeats = 0.5 + rng();
     events.push(note(midi, startBeat, durationBeats, 0.3 + rng() * 0.25));

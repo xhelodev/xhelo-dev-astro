@@ -65,10 +65,10 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
   master.gain.value = 0.0001;
 
   const compressor = ctx.createDynamicsCompressor();
-  compressor.threshold.value = -24;
-  compressor.ratio.value = 4;
+  compressor.threshold.value = -16;
+  compressor.ratio.value = 3;
   compressor.attack.value = 0.01;
-  compressor.release.value = 0.15;
+  compressor.release.value = 0.2;
 
   const saturator = ctx.createWaveShaper();
   saturator.curve = tanhCurve();
@@ -76,13 +76,18 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
 
   const masterLowpass = ctx.createBiquadFilter();
   masterLowpass.type = "lowpass";
-  masterLowpass.frequency.value = 3400; // inside the 2.8-4.2 kHz band (S6)
+  masterLowpass.frequency.value = 5200; // brightened per L16/L17
   masterLowpass.Q.value = 0.5;
 
   const mixBus = ctx.createGain();
   const drumsBus = ctx.createGain();
   const bassBus = ctx.createGain();
   const melodicBus = ctx.createGain(); // chords + melody -> wobble
+  // Kill sub-rumble below the kick's bottom so the low end stays clean (L17).
+  const mixHighpass = ctx.createBiquadFilter();
+  mixHighpass.type = "highpass";
+  mixHighpass.frequency.value = 38;
+  mixHighpass.Q.value = 0.7;
 
   // Chord ducking: chord voices pass through a gain the kick dips.
   const duckGain = ctx.createGain();
@@ -110,7 +115,8 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
   reverb.connect(mixBus);
   bassBus.connect(mixBus);
   drumsBus.connect(mixBus);
-  mixBus.connect(masterLowpass);
+  mixBus.connect(mixHighpass);
+  mixHighpass.connect(masterLowpass);
   masterLowpass.connect(saturator);
   saturator.connect(compressor);
   compressor.connect(master);
@@ -131,6 +137,33 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
 
   // ---- Shared noise buffer for drums ----------------------------------------
   const noiseBuffer = createNoiseBuffer(ctx);
+
+  // ---- Active-voice registry (L18) -------------------------------------------
+  /** Scheduled sources that may still be sounding, for hard stops. */
+  interface ActiveVoice {
+    src: AudioScheduledSourceNode;
+    /** ctx time after which the source has certainly ended. */
+    until: number;
+  }
+  const activeVoices: ActiveVoice[] = [];
+
+  function registerVoice(src: AudioScheduledSourceNode, until: number): void {
+    activeVoices.push({ src, until });
+  }
+
+  /** Hard-stop every ringing voice so an old track never bleeds under a
+   *  regenerated one (L18). Sources stop just after the master gate closes. */
+  function killVoices(): void {
+    const at = ctx.currentTime + 0.03;
+    for (const voice of activeVoices) {
+      try {
+        voice.src.stop(at);
+      } catch {
+        // Already stopped/ended: nothing to do.
+      }
+    }
+    activeVoices.length = 0;
+  }
 
   // ---- Transport / scheduler -------------------------------------------------
   /** Events of ONE loop repetition, sorted by beat, in [0, loopBeats). */
@@ -187,6 +220,13 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
 
   function tick(): void {
     if (!playing) return;
+    // Prune the voice registry so it stays bounded over long sessions.
+    if (activeVoices.length > 64) {
+      const now = ctx.currentTime;
+      for (let i = activeVoices.length - 1; i >= 0; i--) {
+        if (activeVoices[i].until < now) activeVoices.splice(i, 1);
+      }
+    }
     // Background-tab / throttling guard (S6): if the next event is far behind
     // schedule, resync the transport instead of scheduling a catch-up burst.
     if (pointer < loopEvents.length) {
@@ -246,7 +286,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
 
     const voiceFilter = ctx.createBiquadFilter();
     voiceFilter.type = "lowpass";
-    voiceFilter.frequency.value = 2200;
+    voiceFilter.frequency.value = 2800;
 
     const env = ctx.createGain();
     const peak = Math.max(0.02, note.velocity * level);
@@ -262,6 +302,8 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     modulator.start(time);
     carrier.stop(endTime + 0.15);
     modulator.stop(endTime + 0.15);
+    registerVoice(carrier, endTime + 0.15);
+    registerVoice(modulator, endTime + 0.15);
   }
 
   /** Marimba/pluck-like FM voice for the melody (S5/L13). */
@@ -284,7 +326,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     voiceFilter.frequency.value = 5000;
 
     const env = ctx.createGain();
-    const peak = Math.max(0.02, note.velocity * 0.22);
+    const peak = Math.max(0.02, note.velocity * 0.26);
     env.gain.setValueAtTime(0, time);
     env.gain.linearRampToValueAtTime(peak, time + 0.005);
     env.gain.setTargetAtTime(0, time + 0.005, 0.35);
@@ -295,6 +337,8 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     modulator.start(time);
     carrier.stop(endTime + 0.4);
     modulator.stop(endTime + 0.4);
+    registerVoice(carrier, endTime + 0.4);
+    registerVoice(modulator, endTime + 0.4);
   }
 
   function playBass(note: NoteEvent, time: number): void {
@@ -309,10 +353,10 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     voiceFilter.frequency.value = 200;
 
     const env = ctx.createGain();
-    const peak = note.velocity * 0.22;
+    const peak = note.velocity * 0.15;
     env.gain.setValueAtTime(0, time);
     env.gain.linearRampToValueAtTime(peak, time + 0.02);
-    env.gain.setTargetAtTime(peak * 0.85, time + 0.02, 0.5);
+    env.gain.setTargetAtTime(peak * 0.85, time + 0.02, 0.4);
 
     const endTime = time + note.durationBeats * spb;
     env.gain.setTargetAtTime(0, Math.max(time + 0.1, endTime - 0.05), 0.03);
@@ -320,6 +364,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     sine.connect(voiceFilter).connect(env).connect(bassBus);
     sine.start(time);
     sine.stop(endTime + 0.2);
+    registerVoice(sine, endTime + 0.2);
   }
 
   function playDrum(note: NoteEvent, time: number): void {
@@ -335,13 +380,14 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     const osc = ctx.createOscillator();
     osc.type = "sine";
     osc.frequency.setValueAtTime(150, time);
-    osc.frequency.exponentialRampToValueAtTime(55, time + 0.1);
+    osc.frequency.exponentialRampToValueAtTime(60, time + 0.1);
     const env = ctx.createGain();
     env.gain.setValueAtTime(note.velocity * 0.5, time);
     env.gain.setTargetAtTime(0, time, 0.09);
     osc.connect(env).connect(drumsBus);
     osc.start(time);
-    osc.stop(time + 0.22);
+    osc.stop(time + 0.18);
+    registerVoice(osc, time + 0.18);
     // Light chord-bus ducking on kick (S6) — ramped, never an abrupt jump.
     const g = duckGain.gain;
     g.setTargetAtTime(0.6, time, 0.01);
@@ -362,6 +408,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     noise.connect(bandpass).connect(noiseEnv).connect(drumsBus);
     noise.start(time);
     noise.stop(time + 0.15);
+    registerVoice(noise, time + 0.15);
 
     const body = ctx.createOscillator();
     body.type = "triangle";
@@ -372,6 +419,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     body.connect(bodyEnv).connect(drumsBus);
     body.start(time);
     body.stop(time + 0.08);
+    registerVoice(body, time + 0.08);
   }
 
   function playHat(note: NoteEvent, time: number, decay: number, length: number): void {
@@ -379,13 +427,14 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     noise.buffer = noiseBuffer;
     const highpass = ctx.createBiquadFilter();
     highpass.type = "highpass";
-    highpass.frequency.value = 9000;
+    highpass.frequency.value = 7000;
     const env = ctx.createGain();
-    env.gain.setValueAtTime(note.velocity * 0.2, time);
+    env.gain.setValueAtTime(note.velocity * 0.3, time);
     env.gain.setTargetAtTime(0, time, decay);
     noise.connect(highpass).connect(env).connect(drumsBus);
     noise.start(time);
     noise.stop(time + length);
+    registerVoice(noise, time + length);
   }
 
   // ---- Buffers -------------------------------------------------------------------
@@ -468,7 +517,9 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
       playing = true;
       transportStartTime = ctx.currentTime + 0.06 - beatOffset * spb;
       armFromOffset();
-      master.gain.setTargetAtTime(fx.volume * MASTER_CEILING, ctx.currentTime, 0.02);
+      // Reopen the master slightly AFTER killVoices() has silenced the old
+      // sources, so a regenerated track never plays over ringing old ones.
+      master.gain.setTargetAtTime(fx.volume * MASTER_CEILING, ctx.currentTime + 0.05, 0.02);
       tick();
       timer = setInterval(tick, TICK_MS);
       notify();
@@ -478,6 +529,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
       if (!playing) return;
       beatOffset = Math.max(0, beatAt(ctx.currentTime));
       stopScheduler();
+      killVoices();
       master.gain.setTargetAtTime(0.0001, ctx.currentTime, RAMP_S);
       playing = false;
       notify();
@@ -485,6 +537,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
 
     stop() {
       stopScheduler();
+      killVoices();
       master.gain.setTargetAtTime(0.0001, ctx.currentTime, RAMP_S);
       beatOffset = 0;
       if (playing) {
