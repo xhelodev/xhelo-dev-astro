@@ -44,10 +44,10 @@ describe("musical spec ranges (S5/S9)", () => {
 
   it("tempo, swing, length and key are in spec", () => {
     for (const track of tracks) {
-      expect(track.bpm).toBeGreaterThanOrEqual(70);
-      expect(track.bpm).toBeLessThanOrEqual(84);
-      expect(track.swing).toBeGreaterThanOrEqual(0.55);
-      expect(track.swing).toBeLessThanOrEqual(0.62);
+      expect(track.bpm).toBeGreaterThanOrEqual(60);
+      expect(track.bpm).toBeLessThanOrEqual(75);
+      expect(track.swing).toBeGreaterThanOrEqual(0.5);
+      expect(track.swing).toBeLessThanOrEqual(0.58);
       expect(track.bars).toBe(4);
       expect(track.key).toMatch(/^(F|Eb|Db|Bb|C|Ab) (major|dorian|aeolian)$/);
     }

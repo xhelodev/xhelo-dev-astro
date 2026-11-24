@@ -1,8 +1,9 @@
 /**
- * Music theory data for the lofi generator (S5): keys, scales, curated
- * progression pools, boom-bap drum templates and voicing helpers.
- * Pure data + pure functions; no randomness in here (the generator owns the
- * PRNG so seeds stay reproducible).
+ * Music theory data for the lofi generator (S5, latin dreamy lofi/trap style):
+ * keys, scales, curated progression pools (minor-weighted), chill half-time
+ * trap drum templates with triplet hat rolls, and voicing helpers.
+ * Pure data + pure functions; the generator owns the PRNG so seeds stay
+ * reproducible.
  */
 
 /** A chord as semitone offsets from the tonic: root offset + chord intervals. */
@@ -35,9 +36,40 @@ export const PENTATONICS: Record<Mode, readonly number[]> = {
   aeolian: [0, 3, 5, 7, 10],
 };
 
-/** Curated jazz/lofi 4-bar pools (S5). Modal interchange between pools is
- *  idiomatic lofi, so any mode may draw from any pool. */
-export const PROGRESSIONS: readonly Progression[] = [
+/** Dreamy minor pools — the default latin lofi identity (S5/L13). */
+export const MINOR_PROGRESSIONS: readonly Progression[] = [
+  // i9 -> iv9 -> bVII7 -> i9 (dorian)
+  [
+    { rootOffset: 0, intervals: [0, 3, 7, 10, 14] },
+    { rootOffset: 5, intervals: [0, 3, 7, 10, 14] },
+    { rootOffset: 10, intervals: [0, 4, 7, 10] },
+    { rootOffset: 0, intervals: [0, 3, 7, 10, 14] },
+  ],
+  // i9 -> bVImaj7 -> bVII7 -> i9 (aeolian)
+  [
+    { rootOffset: 0, intervals: [0, 3, 7, 10, 14] },
+    { rootOffset: 8, intervals: [0, 4, 7, 11] },
+    { rootOffset: 10, intervals: [0, 4, 7, 10] },
+    { rootOffset: 0, intervals: [0, 3, 7, 10, 14] },
+  ],
+  // i9 -> bVImaj7 -> bIIImaj7 -> bVII7 (aeolian, dreamy color)
+  [
+    { rootOffset: 0, intervals: [0, 3, 7, 10, 14] },
+    { rootOffset: 8, intervals: [0, 4, 7, 11] },
+    { rootOffset: 3, intervals: [0, 4, 7, 11] },
+    { rootOffset: 10, intervals: [0, 4, 7, 10] },
+  ],
+  // i9 -> bVII -> bVImaj7 -> bVII7 (loop)
+  [
+    { rootOffset: 0, intervals: [0, 3, 7, 10, 14] },
+    { rootOffset: 10, intervals: [0, 4, 7, 10] },
+    { rootOffset: 8, intervals: [0, 4, 7, 11] },
+    { rootOffset: 10, intervals: [0, 4, 7, 10] },
+  ],
+];
+
+/** Cuco-style dreamy major pools. */
+export const MAJOR_PROGRESSIONS: readonly Progression[] = [
   // ii9 -> V13 -> Imaj9 -> VI7#9 (classic jazz turnaround)
   [
     { rootOffset: 2, intervals: [0, 3, 7, 10, 14] },
@@ -45,7 +77,7 @@ export const PROGRESSIONS: readonly Progression[] = [
     { rootOffset: 0, intervals: [0, 4, 7, 11, 14] },
     { rootOffset: 9, intervals: [0, 4, 7, 10, 15] },
   ],
-  // IVmaj7 -> iii7 -> vi9 -> ii9 (nostalgic Nujabes/Dilla vibe)
+  // IVmaj7 -> iii7 -> vi9 -> ii9 (nostalgic dreamy vibe)
   [
     { rootOffset: 5, intervals: [0, 4, 7, 11] },
     { rootOffset: 4, intervals: [0, 3, 7, 10] },
@@ -66,34 +98,6 @@ export const PROGRESSIONS: readonly Progression[] = [
     { rootOffset: 0, intervals: [0, 4, 7, 11, 14] },
     { rootOffset: 0, intervals: [0, 4, 7, 11, 14] },
   ],
-  // i9 -> iv9 -> bVII7 -> i9 (dorian)
-  [
-    { rootOffset: 0, intervals: [0, 3, 7, 10, 14] },
-    { rootOffset: 5, intervals: [0, 3, 7, 10, 14] },
-    { rootOffset: 10, intervals: [0, 4, 7, 10] },
-    { rootOffset: 0, intervals: [0, 3, 7, 10, 14] },
-  ],
-  // i9 -> bVImaj7 -> bVII7 -> i9 (aeolian)
-  [
-    { rootOffset: 0, intervals: [0, 3, 7, 10, 14] },
-    { rootOffset: 8, intervals: [0, 4, 7, 11] },
-    { rootOffset: 10, intervals: [0, 4, 7, 10] },
-    { rootOffset: 0, intervals: [0, 3, 7, 10, 14] },
-  ],
-  // vi9 -> ii9 -> V13 -> Imaj9
-  [
-    { rootOffset: 9, intervals: [0, 3, 7, 10, 14] },
-    { rootOffset: 2, intervals: [0, 3, 7, 10, 14] },
-    { rootOffset: 7, intervals: [0, 4, 7, 10, 14] },
-    { rootOffset: 0, intervals: [0, 4, 7, 11, 14] },
-  ],
-  // ii9 -> V13 -> Imaj9 -> IVmaj7
-  [
-    { rootOffset: 2, intervals: [0, 3, 7, 10, 14] },
-    { rootOffset: 7, intervals: [0, 4, 7, 10, 14] },
-    { rootOffset: 0, intervals: [0, 4, 7, 11, 14] },
-    { rootOffset: 5, intervals: [0, 4, 7, 11] },
-  ],
 ];
 
 /** GM drum map notes used by the generator (S5). */
@@ -104,22 +108,26 @@ export const DRUM = {
   openHat: 46,
 } as const;
 
-/** One boom-bap template on a 16-step (16th notes) grid. */
+/**
+ * One chill trap half-time template (S5/L13). All step fields index the
+ * 16-step (16th-note) grid of a single bar; `hatRolls` indexes the eight
+ * 8th-note slots (0-7) that become 16th-triplet rolls.
+ */
 export interface DrumTemplate {
   kick: readonly number[];
   kickGhosts: readonly number[];
+  /** Half-time: the snare sits on beat 3 (step 8), never on 2 & 4. */
   snare: readonly number[];
   snareGhosts: readonly number[];
-  /** 8th-note hats with alternating accent/ghost velocities. */
+  hatRolls: readonly number[];
   hats: "eighths";
   openHat: readonly number[];
 }
 
 export const DRUM_TEMPLATES: readonly DrumTemplate[] = [
-  { kick: [0, 6, 10], kickGhosts: [7], snare: [4, 12], snareGhosts: [11], hats: "eighths", openHat: [14] },
-  { kick: [0, 3, 10], kickGhosts: [11], snare: [4, 12], snareGhosts: [15], hats: "eighths", openHat: [14] },
-  { kick: [0, 8, 10], kickGhosts: [14], snare: [4, 12], snareGhosts: [], hats: "eighths", openHat: [6] },
-  { kick: [0, 6, 11], kickGhosts: [], snare: [4, 12], snareGhosts: [7], hats: "eighths", openHat: [14] },
+  { kick: [0, 6], kickGhosts: [11], snare: [8], snareGhosts: [], hatRolls: [5], hats: "eighths", openHat: [14] },
+  { kick: [0, 10, 13], kickGhosts: [], snare: [8], snareGhosts: [15], hatRolls: [7], hats: "eighths", openHat: [] },
+  { kick: [0, 7], kickGhosts: [14], snare: [8], snareGhosts: [], hatRolls: [3], hats: "eighths", openHat: [6] },
 ];
 
 /** Shift a MIDI note by octaves until it fits [lo, hi]. */

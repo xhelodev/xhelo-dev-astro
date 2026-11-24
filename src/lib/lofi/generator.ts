@@ -15,13 +15,15 @@ import {
   DRUM_TEMPLATES,
   KEYS,
   MODES,
+  MAJOR_PROGRESSIONS,
+  MINOR_PROGRESSIONS,
   PENTATONICS,
-  PROGRESSIONS,
   bassRoot,
   foldToRange,
   voiceChord,
   type DrumTemplate,
   type Mode,
+  type Progression,
 } from "./theory";
 
 /** Bars per generated loop (4/4). */
@@ -58,7 +60,7 @@ function note(midi: number, startBeat: number, durationBeats: number, velocity: 
   return { midi, startBeat, durationBeats, velocity };
 }
 
-function buildChords(rng: () => number, tonicPc: number, bpm: number, progression: typeof PROGRESSIONS[number]): NoteEvent[] {
+function buildChords(rng: () => number, tonicPc: number, bpm: number, progression: Progression): NoteEvent[] {
   const events: NoteEvent[] = [];
   const strumMs = 10 + rng() * 15; // 10-25 ms between chord notes (S5)
   const strumBeats = msToBeats(strumMs, bpm);
@@ -74,17 +76,17 @@ function buildChords(rng: () => number, tonicPc: number, bpm: number, progressio
   return events;
 }
 
-function buildBass(rng: () => number, tonicPc: number, progression: typeof PROGRESSIONS[number]): NoteEvent[] {
+function buildBass(rng: () => number, tonicPc: number, progression: Progression): NoteEvent[] {
   const events: NoteEvent[] = [];
   progression.forEach((chord, bar) => {
     const barStart = bar * BEATS_PER_BAR;
     const root = bassRoot(tonicPc, chord);
-    events.push(note(root, barStart, 1.75, jitterVelocity(rng, 0.55)));
-    // Second hit: octave/fifth on the "and" of 2 or beat 3.
-    if (chance(rng, 0.5)) {
-      const midi = foldToRange(root + (chance(rng, 0.5) ? 12 : 7), 36, 47);
-      const start = barStart + (chance(rng, 0.5) ? 2.5 : 3);
-      events.push(note(midi, start, 0.75, jitterVelocity(rng, 0.45)));
+    // Deep sub bass (S5/L13): one long sine note holding the root per bar.
+    events.push(note(root, barStart, 3.9, jitterVelocity(rng, 0.6)));
+    // Occasional short octave pass at the very end of a bar (folded back
+    // into the 36-47 bass register).
+    if (chance(rng, 0.25)) {
+      events.push(note(foldToRange(root + 12, 36, 47), barStart + 3.5, 0.4, jitterVelocity(rng, 0.35)));
     }
   });
   return events;
@@ -100,34 +102,41 @@ function buildDrums(rng: () => number, swing: number, bpm: number): NoteEvent[] 
     const isLastBar = bar === BARS - 1;
 
     for (const step of template.kick) {
-      events.push(note(DRUM.kick, barStart + applySwing(step, swing), 0.25, jitterVelocity(rng, 0.72)));
+      events.push(note(DRUM.kick, barStart + applySwing(step, swing), 0.25, jitterVelocity(rng, 0.7)));
     }
     for (const step of template.kickGhosts) {
       if (chance(rng, 0.7)) {
         events.push(note(DRUM.kick, barStart + applySwing(step, swing), 0.2, jitterVelocity(rng, 0.25)));
       }
     }
+    // Half-time (S5/L13): the snare sits on beat 3 only, laid back.
     for (const step of template.snare) {
-      events.push(note(DRUM.snare, barStart + applySwing(step, swing) + snareLatenessBeats, 0.3, jitterVelocity(rng, 0.65)));
+      events.push(note(DRUM.snare, barStart + applySwing(step, swing) + snareLatenessBeats, 0.3, jitterVelocity(rng, 0.6)));
     }
     for (const step of template.snareGhosts) {
-      if (chance(rng, 0.6)) {
+      if (chance(rng, 0.5)) {
         events.push(note(DRUM.snare, barStart + applySwing(step, swing) + snareLatenessBeats, 0.2, jitterVelocity(rng, 0.2)));
       }
     }
-    // 8th-note hats with alternating accent/ghost velocities.
-    for (let step = 0; step < 16; step += 2) {
-      const accent = step % 4 === 0;
-      events.push(
-        note(DRUM.closedHat, barStart + applySwing(step, swing), 0.15, jitterVelocity(rng, accent ? 0.42 : 0.24)),
-      );
+    // Straight-ish 8th hats; the roll slots become 16th-triplet rolls.
+    for (let slot = 0; slot < 8; slot++) {
+      const slotStart = barStart + slot * 0.5;
+      if (template.hatRolls.includes(slot)) {
+        const rollVelocity = jitterVelocity(rng, 0.4);
+        for (let k = 0; k < 3; k++) {
+          events.push(note(DRUM.closedHat, slotStart + k * (0.5 / 3), 0.12, rollVelocity * (1 - k * 0.2)));
+        }
+        continue;
+      }
+      const accent = slot % 2 === 0;
+      events.push(note(DRUM.closedHat, slotStart, 0.15, jitterVelocity(rng, accent ? 0.4 : 0.22)));
     }
     for (const step of template.openHat) {
       if (chance(rng, 0.8)) {
-        events.push(note(DRUM.openHat, barStart + applySwing(step, swing), 0.4, jitterVelocity(rng, 0.35)));
+        events.push(note(DRUM.openHat, barStart + applySwing(step, swing), 0.4, jitterVelocity(rng, 0.32)));
       }
     }
-    // Subtle bar-4 variation (S5): extra ghost kick + ghost snare.
+    // Subtle bar-4 variation (S5): extra ghost kick + ghost rimshot.
     if (isLastBar) {
       events.push(note(DRUM.kick, barStart + applySwing(14, swing), 0.2, jitterVelocity(rng, 0.3)));
       events.push(note(DRUM.snare, barStart + applySwing(7, swing) + snareLatenessBeats, 0.2, jitterVelocity(rng, 0.22)));
@@ -141,7 +150,7 @@ function buildMelody(
   tonicPc: number,
   bpm: number,
   mode: Mode,
-  progression: typeof PROGRESSIONS[number],
+  progression: Progression,
 ): NoteEvent[] {
   const events: NoteEvent[] = [];
   const slots = BARS * 8; // 8th-note slots over the loop
@@ -177,12 +186,14 @@ function buildMelody(
 export function generateLofiTrack(seed: string): LofiTrack {
   const rng = createRng(`lofi:${seed}`);
 
-  // Tempo: always inside the 74-80 sweet spot (within the 70-84 spec range).
-  const bpm = 74 + Math.floor(rng() * 7);
+  // Tempo: dreamy/slow, inside the 60-75 spec range (S5/L13).
+  const bpm = 62 + Math.floor(rng() * 10);
   const key = pick(rng, KEYS);
-  const mode = pick(rng, MODES);
-  const swing = 0.55 + rng() * 0.07; // 0.55-0.62 (S5)
-  const progression = pick(rng, PROGRESSIONS);
+  // Minor-leaning identity (S5/L13): aeolian 45%, dorian 35%, major 20%.
+  const modeRoll = rng();
+  const mode: Mode = modeRoll < 0.45 ? "aeolian" : modeRoll < 0.8 ? "dorian" : "major";
+  const swing = 0.5 + rng() * 0.08; // 0.50-0.58, straighter than boom-bap (S5)
+  const progression = pick(rng, mode === "major" ? MAJOR_PROGRESSIONS : MINOR_PROGRESSIONS);
 
   const tracks: TrackMap = {
     chords: buildChords(rng, key.pc, bpm, progression),
