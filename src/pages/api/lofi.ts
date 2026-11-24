@@ -124,7 +124,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
           "HTTP-Referer": origin,
-          "X-Title": "8-BIT RADIO Lofi Generator",
+          "X-Title": "16-BIT RADIO Music Generator",
         },
         body: JSON.stringify(attempts[attempt]),
         signal: AbortSignal.timeout(45_000),

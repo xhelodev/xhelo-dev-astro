@@ -10,6 +10,7 @@
  */
 
 import type { FxSettings, LofiTrack, NoteEvent, TrackName } from "./types";
+import { getPresetConfig, type SynthPresetConfig } from "./presets";
 
 export interface LofiEngine {
   play(): void;
@@ -56,6 +57,7 @@ function tanhCurve(amount = 1.5): Float32Array<ArrayBuffer> {
 
 export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, initialFx: FxSettings): LofiEngine {
   let track = initialTrack;
+  let preset: SynthPresetConfig = getPresetConfig(track.preset);
   let fx = initialFx;
   let spb = 60 / track.bpm;
   let loopBeats = track.bars * 4;
@@ -76,7 +78,7 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
 
   const masterLowpass = ctx.createBiquadFilter();
   masterLowpass.type = "lowpass";
-  masterLowpass.frequency.value = 4600; // warm but not dark (L16/L19)
+  masterLowpass.frequency.value = preset.masterLowpassHz;
   masterLowpass.Q.value = 0.5;
 
   const mixBus = ctx.createGain();
@@ -98,10 +100,27 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
   const reverb = ctx.createConvolver();
   reverb.buffer = createReverbImpulse(ctx);
   const reverbSend = ctx.createGain();
-  reverbSend.gain.value = 0.18;
+  reverbSend.gain.value = preset.reverbSend;
   melodicBus.connect(reverbSend);
   reverbSend.connect(reverb);
   reverb.connect(mixBus);
+
+  // SNES-style tempo-synced warm echo send on the melodic bus.
+  const echoSend = ctx.createGain();
+  echoSend.gain.value = preset.echoSend;
+  const echoDelay = ctx.createDelay(1.0);
+  echoDelay.delayTime.value = Math.min(0.65, spb * preset.echoBeats);
+  const echoFilter = ctx.createBiquadFilter();
+  echoFilter.type = "lowpass";
+  echoFilter.frequency.value = 2800;
+  const echoFeedback = ctx.createGain();
+  echoFeedback.gain.value = preset.echoFeedback;
+  melodicBus.connect(echoSend);
+  echoSend.connect(echoDelay);
+  echoDelay.connect(echoFilter);
+  echoFilter.connect(echoFeedback);
+  echoFeedback.connect(echoDelay);
+  echoFilter.connect(mixBus);
   bassBus.connect(mixBus);
   drumsBus.connect(mixBus);
   mixBus.connect(mixHighpass);
@@ -230,10 +249,10 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
   function scheduleVoice(event: ScheduledEvent, time: number): void {
     switch (event.track) {
       case "chords":
-        playElectricPiano(event.note, time, duckGain, 0.16);
+        playChordVoice(event.note, time, duckGain);
         break;
       case "melody":
-        playPluck(event.note, time);
+        playMelodyVoice(event.note, time);
         break;
       case "bass":
         playBass(event.note, time);
@@ -244,170 +263,243 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
     }
   }
 
-  function playElectricPiano(note: NoteEvent, time: number, bus: AudioNode, level: number): void {
+  function playChordVoice(note: NoteEvent, time: number, bus: AudioNode): void {
+    const cfg = preset.chord;
     const f = midiToFreq(note.midi);
-    const carrier = ctx.createOscillator();
-    carrier.type = "sine";
-    carrier.frequency.value = f;
-    carrier.detune.value = (Math.random() - 0.5) * 6;
+    const detuneJitter = cfg.detuneSpread > 0 ? (Math.random() - 0.5) * cfg.detuneSpread : 0;
 
-    // 2-op FM: warm Rhodes-style attack, mod index decays into the sustain.
-    const modulator = ctx.createOscillator();
-    modulator.type = "sine";
-    modulator.frequency.value = f * 2;
-    const modIndex = ctx.createGain();
-    modIndex.gain.setValueAtTime(f * 1.4, time);
-    modIndex.gain.setTargetAtTime(0, time, 0.25);
-    modulator.connect(modIndex).connect(carrier.frequency);
+    const carrier = ctx.createOscillator();
+    carrier.type = cfg.wave;
+    carrier.frequency.value = f;
+    carrier.detune.value = detuneJitter - cfg.unisonDetune;
 
     const voiceFilter = ctx.createBiquadFilter();
     voiceFilter.type = "lowpass";
-    voiceFilter.frequency.value = 2800;
+    voiceFilter.Q.value = cfg.filterQ;
+    voiceFilter.frequency.setValueAtTime(cfg.filterHz, time);
+    if (cfg.filterEndHz !== cfg.filterHz) {
+      voiceFilter.frequency.setTargetAtTime(cfg.filterEndHz, time, cfg.filterDecay);
+    }
 
     const env = ctx.createGain();
-    const peak = Math.max(0.02, note.velocity * level);
+    const peak = Math.max(0.015, note.velocity * cfg.level);
     env.gain.setValueAtTime(0, time);
-    env.gain.linearRampToValueAtTime(peak, time + 0.02);
-    env.gain.setTargetAtTime(peak * 0.6, time + 0.02, 0.4);
+    env.gain.linearRampToValueAtTime(peak, time + cfg.attack);
+    env.gain.setTargetAtTime(peak * cfg.sustainRatio, time + cfg.attack, cfg.decay);
 
     const endTime = time + note.durationBeats * spb;
-    env.gain.setTargetAtTime(0, Math.max(time + 0.05, endTime - 0.03), RAMP_S);
+    const stopAt = endTime + cfg.release + 0.12;
+    env.gain.setTargetAtTime(0, Math.max(time + cfg.attack + 0.02, endTime - 0.03), Math.max(RAMP_S, cfg.release * 0.4));
 
-    carrier.connect(voiceFilter).connect(env).connect(bus);
+    carrier.connect(voiceFilter);
+
+    if (cfg.unisonDetune > 0) {
+      const unison = ctx.createOscillator();
+      unison.type = cfg.wave;
+      unison.frequency.value = f;
+      unison.detune.value = detuneJitter + cfg.unisonDetune;
+      unison.connect(voiceFilter);
+      unison.start(time);
+      unison.stop(stopAt);
+      registerVoice(unison, stopAt);
+    }
+
+    if (cfg.fmRatio > 0 && cfg.fmIndex > 0) {
+      const modulator = ctx.createOscillator();
+      modulator.type = "sine";
+      modulator.frequency.value = f * cfg.fmRatio;
+      const modIndex = ctx.createGain();
+      modIndex.gain.setValueAtTime(f * cfg.fmIndex, time);
+      modIndex.gain.setTargetAtTime(0, time, cfg.fmDecay);
+      modulator.connect(modIndex).connect(carrier.frequency);
+      modulator.start(time);
+      modulator.stop(stopAt);
+      registerVoice(modulator, stopAt);
+    }
+
+    voiceFilter.connect(env).connect(bus);
     carrier.start(time);
-    modulator.start(time);
-    carrier.stop(endTime + 0.15);
-    modulator.stop(endTime + 0.15);
-    registerVoice(carrier, endTime + 0.15);
-    registerVoice(modulator, endTime + 0.15);
+    carrier.stop(stopAt);
+    registerVoice(carrier, stopAt);
   }
 
-  /** Marimba/pluck-like FM voice for the melody (S5/L13). */
-  function playPluck(note: NoteEvent, time: number): void {
+  function playMelodyVoice(note: NoteEvent, time: number): void {
+    const cfg = preset.melody;
     const f = midiToFreq(note.midi);
     const carrier = ctx.createOscillator();
-    carrier.type = "sine";
+    carrier.type = cfg.wave;
     carrier.frequency.value = f;
 
-    const modulator = ctx.createOscillator();
-    modulator.type = "sine";
-    modulator.frequency.value = f * 3.5;
-    const modIndex = ctx.createGain();
-    modIndex.gain.setValueAtTime(f * 1.2, time);
-    modIndex.gain.setTargetAtTime(0, time, 0.12);
-    modulator.connect(modIndex).connect(carrier.frequency);
+    const endTime = time + note.durationBeats * spb;
+    const stopAt = endTime + cfg.release + 0.25;
+
+    if (cfg.fmRatio > 0 && cfg.fmIndex > 0) {
+      const modulator = ctx.createOscillator();
+      modulator.type = "sine";
+      modulator.frequency.value = f * cfg.fmRatio;
+      const modIndex = ctx.createGain();
+      modIndex.gain.setValueAtTime(f * cfg.fmIndex, time);
+      modIndex.gain.setTargetAtTime(0, time, cfg.fmDecay);
+      modulator.connect(modIndex).connect(carrier.frequency);
+      modulator.start(time);
+      modulator.stop(stopAt);
+      registerVoice(modulator, stopAt);
+    }
+
+    if (cfg.vibratoHz > 0 && cfg.vibratoDepthCents > 0) {
+      const lfo = ctx.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.value = cfg.vibratoHz;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = cfg.vibratoDepthCents;
+      lfo.connect(lfoGain).connect(carrier.detune);
+      lfo.start(time);
+      lfo.stop(stopAt);
+      registerVoice(lfo, stopAt);
+    }
 
     const voiceFilter = ctx.createBiquadFilter();
     voiceFilter.type = "lowpass";
-    voiceFilter.frequency.value = 3500;
+    voiceFilter.frequency.value = cfg.filterHz;
 
     const env = ctx.createGain();
-    const peak = Math.max(0.02, note.velocity * 0.22);
+    const peak = Math.max(0.02, note.velocity * cfg.level);
     env.gain.setValueAtTime(0, time);
-    env.gain.linearRampToValueAtTime(peak, time + 0.012);
-    env.gain.setTargetAtTime(0, time + 0.012, 0.35);
+    env.gain.linearRampToValueAtTime(peak, time + cfg.attack);
+    if (cfg.sustainRatio > 0) {
+      env.gain.setTargetAtTime(peak * cfg.sustainRatio, time + cfg.attack, cfg.decay);
+      env.gain.setTargetAtTime(0, Math.max(time + cfg.attack + 0.02, endTime - 0.02), Math.max(RAMP_S, cfg.release * 0.4));
+    } else {
+      env.gain.setTargetAtTime(0, time + cfg.attack, cfg.decay);
+    }
 
-    const endTime = time + note.durationBeats * spb;
     carrier.connect(voiceFilter).connect(env).connect(melodicBus);
     carrier.start(time);
-    modulator.start(time);
-    carrier.stop(endTime + 0.4);
-    modulator.stop(endTime + 0.4);
-    registerVoice(carrier, endTime + 0.4);
-    registerVoice(modulator, endTime + 0.4);
+    carrier.stop(stopAt);
+    registerVoice(carrier, stopAt);
   }
 
   function playBass(note: NoteEvent, time: number): void {
+    const cfg = preset.bass;
     const f = midiToFreq(note.midi);
-    // Deep sub bass (S5/L13): pure sine, long sustain, dark filter.
-    const sine = ctx.createOscillator();
-    sine.type = "sine";
-    sine.frequency.value = f;
+    const osc = ctx.createOscillator();
+    osc.type = cfg.wave;
+    if (cfg.pitchPunch > 1) {
+      osc.frequency.setValueAtTime(f * cfg.pitchPunch, time);
+      osc.frequency.exponentialRampToValueAtTime(f, time + 0.045);
+    } else {
+      osc.frequency.value = f;
+    }
 
     const voiceFilter = ctx.createBiquadFilter();
     voiceFilter.type = "lowpass";
-    voiceFilter.frequency.value = 200;
+    voiceFilter.Q.value = cfg.filterQ;
+    voiceFilter.frequency.setValueAtTime(cfg.filterHz, time);
+    if (cfg.filterEndHz !== cfg.filterHz) {
+      voiceFilter.frequency.setTargetAtTime(cfg.filterEndHz, time, cfg.filterDecay);
+    }
 
     const env = ctx.createGain();
-    const peak = note.velocity * 0.15;
+    const peak = note.velocity * cfg.level;
     env.gain.setValueAtTime(0, time);
-    env.gain.linearRampToValueAtTime(peak, time + 0.02);
-    env.gain.setTargetAtTime(peak * 0.85, time + 0.02, 0.4);
+    env.gain.linearRampToValueAtTime(peak, time + cfg.attack);
+    env.gain.setTargetAtTime(peak * cfg.sustainRatio, time + cfg.attack, cfg.decay);
 
     const endTime = time + note.durationBeats * spb;
-    env.gain.setTargetAtTime(0, Math.max(time + 0.1, endTime - 0.05), 0.03);
+    env.gain.setTargetAtTime(0, Math.max(time + 0.06, endTime - 0.04), Math.max(0.02, cfg.release * 0.5));
 
-    sine.connect(voiceFilter).connect(env).connect(bassBus);
-    sine.start(time);
-    sine.stop(endTime + 0.2);
-    registerVoice(sine, endTime + 0.2);
+    const stopAt = endTime + cfg.release + 0.15;
+
+    if (cfg.fmRatio > 0 && cfg.fmIndex > 0) {
+      const modulator = ctx.createOscillator();
+      modulator.type = "sine";
+      modulator.frequency.value = f * cfg.fmRatio;
+      const modIndex = ctx.createGain();
+      modIndex.gain.setValueAtTime(f * cfg.fmIndex, time);
+      modIndex.gain.setTargetAtTime(0, time, cfg.fmDecay);
+      modulator.connect(modIndex).connect(osc.frequency);
+      modulator.start(time);
+      modulator.stop(stopAt);
+      registerVoice(modulator, stopAt);
+    }
+
+    osc.connect(voiceFilter).connect(env).connect(bassBus);
+    osc.start(time);
+    osc.stop(stopAt);
+    registerVoice(osc, stopAt);
   }
 
   function playDrum(note: NoteEvent, time: number): void {
+    const scale = preset.drums.hatDecayScale;
     switch (note.midi) {
       case 36: playKick(note, time); break;
       case 38: playSnare(note, time); break;
-      case 42: playHat(note, time, 0.025, 0.12); break;
-      case 46: playHat(note, time, 0.09, 0.45); break;
+      case 42: playHat(note, time, 0.025 * scale, 0.12 * scale); break;
+      case 46: playHat(note, time, 0.09 * scale, 0.45 * scale); break;
     }
   }
 
   function playKick(note: NoteEvent, time: number): void {
+    const cfg = preset.drums;
     const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(150, time);
-    osc.frequency.exponentialRampToValueAtTime(60, time + 0.1);
+    osc.type = cfg.kickWave;
+    osc.frequency.setValueAtTime(cfg.kickStartHz, time);
+    osc.frequency.exponentialRampToValueAtTime(cfg.kickEndHz, time + cfg.kickSweepS);
     const env = ctx.createGain();
-    env.gain.setValueAtTime(note.velocity * 0.5, time);
-    env.gain.setTargetAtTime(0, time, 0.09);
+    env.gain.setValueAtTime(note.velocity * cfg.kickLevel, time);
+    env.gain.setTargetAtTime(0, time, cfg.kickDecay);
     osc.connect(env).connect(drumsBus);
     osc.start(time);
-    osc.stop(time + 0.18);
-    registerVoice(osc, time + 0.18);
-    // Light chord-bus ducking on kick (S6) — ramped, never an abrupt jump.
-    const g = duckGain.gain;
-    g.setTargetAtTime(0.6, time, 0.01);
-    g.setTargetAtTime(1, time + 0.06, 0.12);
+    osc.stop(time + cfg.kickLength);
+    registerVoice(osc, time + cfg.kickLength);
+    // Chord-bus ducking on kick — ramped, never an abrupt jump.
+    if (preset.duckAmount < 0.99) {
+      const g = duckGain.gain;
+      g.setTargetAtTime(preset.duckAmount, time, 0.01);
+      g.setTargetAtTime(1, time + 0.06, 0.12);
+    }
   }
 
   function playSnare(note: NoteEvent, time: number): void {
-    // Woody rimshot (S5/L13): short bandpassed knock + tiny body.
+    const cfg = preset.drums;
     const noise = ctx.createBufferSource();
     noise.buffer = noiseBuffer;
     const bandpass = ctx.createBiquadFilter();
     bandpass.type = "bandpass";
-    bandpass.frequency.value = 1200;
-    bandpass.Q.value = 1.2;
+    bandpass.frequency.value = cfg.snareNoiseHz;
+    bandpass.Q.value = cfg.snareNoiseQ;
     const noiseEnv = ctx.createGain();
-    noiseEnv.gain.setValueAtTime(note.velocity * 0.22, time);
-    noiseEnv.gain.setTargetAtTime(0, time, 0.045);
+    noiseEnv.gain.setValueAtTime(note.velocity * cfg.snareNoiseLevel, time);
+    noiseEnv.gain.setTargetAtTime(0, time, cfg.snareNoiseDecay);
     noise.connect(bandpass).connect(noiseEnv).connect(drumsBus);
     noise.start(time);
-    noise.stop(time + 0.15);
-    registerVoice(noise, time + 0.15);
+    noise.stop(time + cfg.snareLength);
+    registerVoice(noise, time + cfg.snareLength);
 
     const body = ctx.createOscillator();
-    body.type = "triangle";
-    body.frequency.value = 330;
+    body.type = cfg.snareBodyWave;
+    body.frequency.value = cfg.snareBodyHz;
     const bodyEnv = ctx.createGain();
-    bodyEnv.gain.setValueAtTime(note.velocity * 0.08, time);
-    bodyEnv.gain.setTargetAtTime(0, time, 0.03);
+    bodyEnv.gain.setValueAtTime(note.velocity * cfg.snareBodyLevel, time);
+    bodyEnv.gain.setTargetAtTime(0, time, cfg.snareBodyDecay);
     body.connect(bodyEnv).connect(drumsBus);
     body.start(time);
-    body.stop(time + 0.08);
-    registerVoice(body, time + 0.08);
+    body.stop(time + Math.min(cfg.snareLength, cfg.snareBodyDecay * 4));
+    registerVoice(body, time + Math.min(cfg.snareLength, cfg.snareBodyDecay * 4));
   }
 
   function playHat(note: NoteEvent, time: number, decay: number, length: number): void {
+    const cfg = preset.drums;
     const noise = ctx.createBufferSource();
     noise.buffer = noiseBuffer;
-    const highpass = ctx.createBiquadFilter();
-    highpass.type = "highpass";
-    highpass.frequency.value = 7000;
+    const filter = ctx.createBiquadFilter();
+    filter.type = cfg.hatFilterType;
+    filter.frequency.value = cfg.hatHz;
+    filter.Q.value = cfg.hatQ;
     const env = ctx.createGain();
-    env.gain.setValueAtTime(note.velocity * 0.25, time);
+    env.gain.setValueAtTime(note.velocity * cfg.hatLevel, time);
     env.gain.setTargetAtTime(0, time, decay);
-    noise.connect(highpass).connect(env).connect(drumsBus);
+    noise.connect(filter).connect(env).connect(drumsBus);
     noise.start(time);
     noise.stop(time + length);
     registerVoice(noise, time + length);
@@ -506,9 +598,15 @@ export function createLofiEngine(ctx: AudioContext, initialTrack: LofiTrack, ini
       const wasPlaying = playing;
       this.stop();
       track = next;
+      preset = getPresetConfig(next.preset);
       spb = 60 / next.bpm;
       loopBeats = next.bars * 4;
       beatOffset = 0;
+      masterLowpass.frequency.setTargetAtTime(preset.masterLowpassHz, ctx.currentTime, 0.03);
+      reverbSend.gain.setTargetAtTime(preset.reverbSend, ctx.currentTime, 0.03);
+      echoSend.gain.setTargetAtTime(preset.echoSend, ctx.currentTime, 0.03);
+      echoFeedback.gain.setTargetAtTime(preset.echoFeedback, ctx.currentTime, 0.03);
+      echoDelay.delayTime.setTargetAtTime(Math.min(0.65, spb * preset.echoBeats), ctx.currentTime, 0.03);
       if (wasPlaying) this.play();
     },
 

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_PROMPT_LENGTH,
+  buildUserPrompt,
   compileAiComposition,
   parseAiComposition,
   sanitizePrompt,
 } from "./ai-track";
+import { SOUND_PRESETS } from "./types";
+import { getPresetConfig } from "./presets";
 
 const VALID_JSON = JSON.stringify({
   title: "Bossa Lluvia",
@@ -107,5 +110,68 @@ describe("ai-track", () => {
   it("rejects malformed JSON or missing chords", () => {
     expect(() => parseAiComposition("not json", "jazz")).toThrow(/Invalid JSON/);
     expect(() => parseAiComposition(JSON.stringify({ chords: [] }), "jazz")).toThrow(/chords/);
+  });
+
+  it("parses and propagates sound presets with fallback to lofi-rhodes", () => {
+    const withPreset = JSON.stringify({ ...JSON.parse(VALID_JSON), preset: "snes-rpg" });
+    const comp = parseAiComposition(withPreset, "chrono trigger town");
+    expect(comp.preset).toBe("snes-rpg");
+    expect(compileAiComposition(comp).preset).toBe("snes-rpg");
+
+    const withGenesis = JSON.stringify({ ...JSON.parse(VALID_JSON), preset: "16-bit arcade" });
+    expect(parseAiComposition(withGenesis, "arcade").preset).toBe("genesis-fm");
+
+    const withSnesAlias = JSON.stringify({ ...JSON.parse(VALID_JSON), preset: "rpg" });
+    expect(parseAiComposition(withSnesAlias, "fantasy village").preset).toBe("snes-rpg");
+
+    const withoutPreset = parseAiComposition(VALID_JSON, "rainy day");
+    expect(withoutPreset.preset).toBe("lofi-rhodes");
+    expect(compileAiComposition(withoutPreset).preset).toBe("lofi-rhodes");
+  });
+
+  it("does not force lofi in buildUserPrompt when another style is requested", () => {
+    const prompt = buildUserPrompt("80s synthwave arcade");
+    expect(prompt.toLowerCase()).toContain("80s synthwave arcade");
+    expect(prompt.toLowerCase()).not.toContain("lofi");
+  });
+
+  it("supports optional bar4 drum variation in compileAiComposition", () => {
+    const base = JSON.parse(VALID_JSON);
+    base.drums.bar4 = {
+      kick: [0, 6, 8, 12, 14],
+      snare: [4, 10, 12, 14, 15],
+      closedHat: [0, 2, 4, 6],
+      openHat: [12],
+    };
+    const track = compileAiComposition(parseAiComposition(JSON.stringify(base), "funky"));
+    const bar1Snares = track.tracks.drums.filter((e) => e.startBeat < 4 && e.midi === 38);
+    const bar4Snares = track.tracks.drums.filter((e) => e.startBeat >= 12 && e.midi === 38);
+    expect(bar1Snares).toHaveLength(2);
+    expect(bar4Snares).toHaveLength(5);
+  });
+
+  it("defines distinct, safe DSP configs for every SoundPreset", () => {
+    expect(SOUND_PRESETS).toContain("snes-rpg");
+    expect(SOUND_PRESETS).toContain("genesis-fm");
+    const configs = SOUND_PRESETS.map((p) => getPresetConfig(p));
+    const signatures = new Set(
+      configs.map(
+        (c) =>
+          `${c.chord.wave}:${c.melody.wave}:${c.bass.wave}:${c.bass.fmIndex}:${c.masterLowpassHz}:${c.reverbSend}:${c.echoSend}`,
+      ),
+    );
+    expect(signatures.size).toBe(SOUND_PRESETS.length);
+    for (const c of configs) {
+      expect(c.masterLowpassHz).toBeGreaterThanOrEqual(1500);
+      expect(c.masterLowpassHz).toBeLessThanOrEqual(16000);
+      expect(c.reverbSend).toBeGreaterThanOrEqual(0);
+      expect(c.reverbSend).toBeLessThanOrEqual(0.6);
+      expect(c.echoSend).toBeGreaterThanOrEqual(0);
+      expect(c.echoSend).toBeLessThanOrEqual(0.5);
+      expect(c.echoFeedback).toBeGreaterThanOrEqual(0);
+      expect(c.echoFeedback).toBeLessThanOrEqual(0.5);
+      expect(c.duckAmount).toBeGreaterThanOrEqual(0.3);
+      expect(c.duckAmount).toBeLessThanOrEqual(1);
+    }
   });
 });

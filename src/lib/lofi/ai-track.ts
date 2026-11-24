@@ -5,7 +5,7 @@
  * response from an LLM into a validated, engine-ready `LofiTrack`.
  */
 
-import type { LofiTrack, NoteEvent, TrackMap } from "./types";
+import { SOUND_PRESETS, type LofiTrack, type NoteEvent, type SoundPreset, type TrackMap } from "./types";
 import { DRUM, foldToRange } from "./theory";
 
 export const MAX_PROMPT_LENGTH = 140;
@@ -29,11 +29,16 @@ export interface AiMelodyNote {
   vel?: number;
 }
 
-export interface AiDrumPattern {
+export interface AiDrumBar {
   kick: number[];
   snare: number[];
   closedHat: number[];
   openHat?: number[];
+}
+
+export interface AiDrumPattern extends AiDrumBar {
+  /** Optional bar-4 fill/variation pattern overriding bars 1-3 on the last bar. */
+  bar4?: Partial<AiDrumBar>;
 }
 
 export interface AiComposition {
@@ -41,45 +46,56 @@ export interface AiComposition {
   key: string;
   bpm: number;
   swing: number;
+  preset: SoundPreset;
   chords: AiChordBar[];
   melody: AiMelodyNote[];
   drums: AiDrumPattern;
 }
 
-export const SYSTEM_PROMPT = `You are a lofi / MIDI composer. Given a user's style or mood prompt, compose a cohesive, musical 4-bar loop in 4/4 (16 beats total) for a 4-track Web Audio synthesizer (FM electric piano chords, sub bass, vibraphone/lead melody, synthesized drums).
+export const SYSTEM_PROMPT = `You are a versatile 16-bit / MIDI composer. Given a user's style or mood prompt, compose a cohesive, musical 4-bar loop in 4/4 (16 beats total) for a 4-track 16-bit Web Audio synthesizer (chords, bass, melody, drums) and pick the best matching synth preset.
 
-Return ONLY valid JSON matching this exact shape (no markdown, no explanation):
+Return ONLY valid JSON matching this exact schema (no markdown, no explanation):
 {
   "title": "SHORT TITLE (1-3 words, ASCII)",
-  "key": "e.g. D dorian or F major",
-  "bpm": 74,
-  "swing": 0.56,
+  "key": "<tonic> <mode/scale>",
+  "bpm": <integer 55-120>,
+  "swing": <number 0.50-0.65>,
+  "preset": "lofi-rhodes" | "snes-rpg" | "genesis-fm" | "synthwave" | "jazz-warm" | "bossa-nylon" | "ambient-pad" | "trap-dark",
   "chords": [
-    { "notes": [50, 57, 60, 64, 67], "bass": 38, "hits": [0] },
-    { "notes": [55, 59, 62, 65, 69], "bass": 43, "hits": [0] },
-    { "notes": [48, 55, 59, 62, 64], "bass": 36, "hits": [0] },
-    { "notes": [57, 60, 64, 67, 71], "bass": 45, "hits": [0] }
+    { "notes": [<3-5 MIDI ints 48-76>], "bass": <MIDI int 36-47>, "hits": [<beat offsets 0-3.75>] }
   ],
   "melody": [
-    { "midi": 72, "start": 0.5, "dur": 1.0, "vel": 0.45 }
+    { "midi": <MIDI int 60-84>, "start": <beat 0-15.75>, "dur": <beats 0.15-4>, "vel": <0.1-0.9> }
   ],
   "drums": {
-    "kick": [0, 6, 10],
-    "snare": [4, 12],
-    "closedHat": [0, 2, 4, 6, 8, 10, 12, 14],
-    "openHat": [14]
+    "kick": [<16th steps 0-15>],
+    "snare": [<16th steps 0-15>],
+    "closedHat": [<16th steps 0-15>],
+    "openHat": [<16th steps 0-15>],
+    "bar4": { "kick": [...], "snare": [...], "closedHat": [...], "openHat": [...] }
   }
 }
 
+Preset guide (ALWAYS choose the preset that genuinely fits the user's prompt):
+- "lofi-rhodes": chill lofi, rainy study beats, bedroom pop, nostalgic chillhop
+- "snes-rpg": SNES / 16-bit RPG, Chrono Trigger / Donkey Kong vibe, fantasy village, nostalgic game, dreamy strings + echo
+- "genesis-fm": Sega Genesis / Mega Drive, 16-bit arcade, action game, upbeat retro FM slap bass + brass, 8-bit/chip
+- "synthwave": synthwave, cyberpunk, 80s retro, outrun, electronic, neon, disco
+- "jazz-warm": jazz, neo-soul, cafe, midnight lounge, swing
+- "bossa-nylon": bossa nova, latin, cumbia, salsa, tropical, beach, acoustic guitar
+- "ambient-pad": ambient, space, dreamy, meditation, cinematic, ethereal
+- "trap-dark": trap, dark hip-hop, phonk, moody urban, heavy 808
+
 Musical rules:
-- Match the requested style closely through bpm (55-120), swing (0.50 straight to 0.65 swung), chord voicings (7ths/9ths/sus/minor/major), chord rhythm hits (e.g. syncopated for bossa/funk, [0] for dreamy pads), and drum pattern (empty arrays allowed for ambient/drumless).
-- Melody MUST sound intentional: write a singable 2-bar motif (beats 0-8) and answer/vary it in bars 3-4 (beats 8-16). Favor stepwise motion, chord tones on strong beats, and breathing room (12-26 notes total across 16 beats). Every melody note MUST belong to the key/chord.
-- Chord notes in MIDI 48-76, bass in MIDI 36-47, melody in MIDI 60-84.
-- Drum steps are integers 0-15 (16th-note grid per bar).`;
+- Provide exactly 4 chord bars tailored to the requested genre (different keys, voicings, and chord comping hits — e.g. syncopated hits for bossa/cumbia/funk, pulsing 8ths for synthwave/genesis, [0] for dreamy pads/RPG).
+- Match tempo and groove strictly to the genre: e.g. ambient 55-68, lofi/trap 65-82, snes-rpg 75-100, bossa/cumbia 88-105, synthwave/genesis-fm 100-120.
+- Melody MUST sound intentional: write a singable 2-bar motif (beats 0-8) and answer/vary it in bars 3-4 (beats 8-16). Favor stepwise motion, chord tones on strong beats, and 12-26 notes total across 16 beats.
+- Include a subtle "bar4" drum fill/variation when drums are used (empty drum arrays allowed for ambient/drumless).
+- Chord notes in MIDI 48-76, bass in MIDI 36-47, melody in MIDI 60-84. Drum steps are integers 0-15.`;
 
 export function buildUserPrompt(rawPrompt: string): string {
   const cleaned = sanitizePrompt(rawPrompt);
-  return `Compose a 4-bar lofi MIDI loop in this style: "${cleaned}"`;
+  return `Compose a 4-bar MIDI loop matching this exact style and mood: "${cleaned}"`;
 }
 
 export function sanitizePrompt(raw: string): string {
@@ -128,6 +144,22 @@ function sanitizeTitle(title: unknown, fallbackPrompt: string): string {
   if (fromTitle.length > 0) return fromTitle;
   const fromPrompt = cleanAsciiLabel(fallbackPrompt);
   return fromPrompt.length > 0 ? fromPrompt : "AI LOFI";
+}
+
+const PRESET_SET = new Set<string>(SOUND_PRESETS);
+
+function parsePreset(raw: unknown): SoundPreset {
+  if (typeof raw !== "string") return "lofi-rhodes";
+  const normalized = raw.trim().toLowerCase().replace(/[\s_]+/g, "-");
+  if (PRESET_SET.has(normalized)) return normalized as SoundPreset;
+  if (/snes|rpg|chrono|zelda|fantasy|spc/.test(normalized)) return "snes-rpg";
+  if (/genesis|mega-?drive|16-?bit|8-?bit|chip|arcade|nes|retro-?game|pixel|ym2612|fm/.test(normalized)) return "genesis-fm";
+  if (/synth|cyber|outrun|neon|vapor|electro|disco|wave/.test(normalized)) return "synthwave";
+  if (/jazz|soul|lounge|cafe|wurlitzer/.test(normalized)) return "jazz-warm";
+  if (/bossa|nylon|latin|cumbia|salsa|tropical|guitar|acoustic|samba/.test(normalized)) return "bossa-nylon";
+  if (/ambient|pad|space|dream|medit|ethereal|cinematic/.test(normalized)) return "ambient-pad";
+  if (/trap|dark|phonk|808|drill|hip-?hop/.test(normalized)) return "trap-dark";
+  return "lofi-rhodes";
 }
 
 function parseSteps(arr: unknown): number[] {
@@ -217,11 +249,22 @@ export function parseAiComposition(rawText: string, fallbackPrompt: string): AiC
   }
 
   const rawDrums = obj.drums && typeof obj.drums === "object" ? (obj.drums as Record<string, unknown>) : {};
+  const rawBar4 =
+    rawDrums.bar4 && typeof rawDrums.bar4 === "object" ? (rawDrums.bar4 as Record<string, unknown>) : null;
+  const bar4: Partial<AiDrumBar> | undefined = rawBar4
+    ? {
+        ...(Array.isArray(rawBar4.kick) ? { kick: parseSteps(rawBar4.kick) } : {}),
+        ...(Array.isArray(rawBar4.snare) ? { snare: parseSteps(rawBar4.snare) } : {}),
+        ...(Array.isArray(rawBar4.closedHat) ? { closedHat: parseSteps(rawBar4.closedHat) } : {}),
+        ...(Array.isArray(rawBar4.openHat) ? { openHat: parseSteps(rawBar4.openHat) } : {}),
+      }
+    : undefined;
   const drums: AiDrumPattern = {
     kick: parseSteps(rawDrums.kick),
     snare: parseSteps(rawDrums.snare),
     closedHat: parseSteps(rawDrums.closedHat),
     openHat: parseSteps(rawDrums.openHat),
+    ...(bar4 && Object.keys(bar4).length > 0 ? { bar4 } : {}),
   };
 
   const bpm = Math.round(clamp(toFiniteNumber(obj.bpm) ?? 74, 55, 120));
@@ -230,12 +273,14 @@ export function parseAiComposition(rawText: string, fallbackPrompt: string): AiC
     typeof obj.key === "string" && obj.key.trim().length > 0
       ? obj.key.trim().slice(0, 24)
       : "C minor";
+  const preset = parsePreset(obj.preset);
 
   return {
     title: sanitizeTitle(obj.title, fallbackPrompt),
     key,
     bpm,
     swing,
+    preset,
     chords,
     melody: melody.slice(0, 64),
     drums,
@@ -295,7 +340,14 @@ export function compileAiComposition(comp: AiComposition): LofiTrack {
 
   for (let bar = 0; bar < BARS; bar++) {
     const barStart = bar * BEATS_PER_BAR;
-    for (const step of comp.drums.kick) {
+    const isLastBar = bar === BARS - 1;
+    const bar4 = isLastBar ? comp.drums.bar4 : undefined;
+    const kickSteps = bar4?.kick ?? comp.drums.kick;
+    const snareSteps = bar4?.snare ?? comp.drums.snare;
+    const closedHatSteps = bar4?.closedHat ?? comp.drums.closedHat;
+    const openHatSteps = bar4?.openHat ?? comp.drums.openHat ?? [];
+
+    for (const step of kickSteps) {
       drums.push({
         midi: DRUM.kick,
         startBeat: barStart + applySwing(step, comp.swing),
@@ -303,7 +355,7 @@ export function compileAiComposition(comp: AiComposition): LofiTrack {
         velocity: step === 0 ? 0.72 : 0.58,
       });
     }
-    for (const step of comp.drums.snare) {
+    for (const step of snareSteps) {
       drums.push({
         midi: DRUM.snare,
         startBeat: barStart + applySwing(step, comp.swing),
@@ -311,7 +363,7 @@ export function compileAiComposition(comp: AiComposition): LofiTrack {
         velocity: 0.6,
       });
     }
-    for (const step of comp.drums.closedHat) {
+    for (const step of closedHatSteps) {
       drums.push({
         midi: DRUM.closedHat,
         startBeat: barStart + applySwing(step, comp.swing),
@@ -319,7 +371,7 @@ export function compileAiComposition(comp: AiComposition): LofiTrack {
         velocity: step % 4 === 0 ? 0.38 : 0.22,
       });
     }
-    for (const step of comp.drums.openHat ?? []) {
+    for (const step of openHatSteps) {
       drums.push({
         midi: DRUM.openHat,
         startBeat: barStart + applySwing(step, comp.swing),
@@ -340,6 +392,7 @@ export function compileAiComposition(comp: AiComposition): LofiTrack {
     bars: BARS,
     key: comp.key,
     swing: comp.swing,
+    preset: comp.preset,
     tracks,
   };
 }

@@ -36,6 +36,8 @@
   --badge-db-fg: #67E8F9;
   --badge-emerging-bg: #2C2210;
   --badge-emerging-fg: #FCD34D;
+  --badge-web3-bg: #3B1320;
+  --badge-web3-fg: #FDA4AF;
 }
 
 html.dark-mode {
@@ -72,6 +74,8 @@ html.dark-mode {
   --badge-db-fg: #67E8F9;
   --badge-emerging-bg: #2C2210;
   --badge-emerging-fg: #FCD34D;
+  --badge-web3-bg: #3B1320;
+  --badge-web3-fg: #FDA4AF;
 }
 
 /* ─── Base ─── */
@@ -199,6 +203,12 @@ a:hover {
 .badge-emerging {
   background: var(--badge-emerging-bg);
   color: var(--badge-emerging-fg);
+  border-color: transparent;
+}
+
+.badge-web3 {
+  background: var(--badge-web3-bg);
+  color: var(--badge-web3-fg);
   border-color: transparent;
 }
 

@@ -32,17 +32,33 @@ export interface FxSettings {
   volume: number;
 }
 
+/** Synth/timbre presets the 16-bit Web Audio engine can render. */
+export const SOUND_PRESETS = [
+  "lofi-rhodes",
+  "snes-rpg",
+  "genesis-fm",
+  "synthwave",
+  "jazz-warm",
+  "bossa-nylon",
+  "ambient-pad",
+  "trap-dark",
+] as const;
+
+export type SoundPreset = (typeof SOUND_PRESETS)[number];
+
 /** The full generated composition. Deterministic for a given seed. */
 export interface LofiTrack {
   /** Seed string this track was generated from (URL-shareable). */
   seed: string;
-  /** Tempo in BPM, 70–84. */
+  /** Tempo in BPM, 55–120. */
   bpm: number;
   /** Composition length in 4/4 bars (the generated loop). */
   bars: number;
   /** Human-readable key, e.g. `"F major"`, `"Eb dorian"`. */
   key: string;
-  /** Swing amount 0.55–0.62 (0.5 = straight). */
+  /** Swing amount 0.50–0.65 (0.5 = straight). */
   swing: number;
+  /** Optional synth/timbre preset chosen for the style; defaults to `"lofi-rhodes"`. */
+  preset?: SoundPreset;
   tracks: TrackMap;
 }

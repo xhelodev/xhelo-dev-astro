@@ -19,8 +19,8 @@ import profilePic from "../assets/hero-photo-pixel.png";
     />
     <h1 class="text-3xl sm:text-4xl font-semibold tracking-tight mb-1">Marcelo Aguirre</h1>
     <p class="text-[var(--fg-muted)] text-sm sm:text-base leading-relaxed break-words font-medium">
-      <span x-show="language === 'es'">AI Engineer · LLM Systems &amp; Autonomous Agents · Fullstack</span>
-      <span x-show="language === 'en'">AI Engineer · LLM Systems &amp; Autonomous Agents · Fullstack</span>
+      <span x-show="language === 'es'">Fullstack &amp; AI Engineer · TypeScript Specialist · LLM Systems &amp; Web3</span>
+      <span x-show="language === 'en'">Fullstack &amp; AI Engineer · TypeScript Specialist · LLM Systems &amp; Web3</span>
     </p>
 
     <!-- Socials -->
@@ -53,24 +53,31 @@ import profilePic from "../assets/hero-photo-pixel.png";
     </h2>
     <p class="leading-relaxed text-[var(--fg-muted)]">
       <span x-show="language === 'es'">
-        Ingeniero de IA especializado en arquitecturas de extremo a extremo,
-        <strong class="text-[var(--fg)]">agentes autónomos</strong> y sistemas en producción con foco en
-        <strong class="text-[var(--fg)]">baja latencia</strong>,
-        <strong class="text-[var(--fg)]">fiabilidad</strong> y experiencia de usuario. Con sólida base en
+        Desarrollador fullstack especializado en arquitecturas robustas de extremo a extremo,
+        con foco en <strong class="text-[var(--fg)]">rendimiento</strong>,
+        <strong class="text-[var(--fg)]">escalabilidad</strong> y
+        <strong class="text-[var(--fg)]">experiencia de usuario</strong>. Apasionado por la
+        <strong class="text-[var(--fg)]">Inteligencia Artificial</strong> — agentes autónomos,
+        pipelines RAG y sistemas LLM en producción — y por el ecosistema
+        <strong class="text-[var(--fg)]">Web3, blockchain y DeFi</strong>. Con sólida base en
         <strong class="text-[var(--fg)]">TypeScript</strong>,
         <strong class="text-[var(--fg)]">Python</strong> e
-        <strong class="text-[var(--fg)]">infraestructura Linux</strong>, diseño pipelines RAG,
-        integraciones con modelos LLM y automatización inteligente lista para escalar.
+        <strong class="text-[var(--fg)]">infraestructura Linux</strong>, construyo soluciones
+        que combinan fiabilidad técnica con innovación.
       </span>
       <span x-show="language === 'en'">
-        AI engineer focused on end-to-end architectures,
-        <strong class="text-[var(--fg)]">autonomous agents</strong> and production systems with an emphasis on
-        <strong class="text-[var(--fg)]">low latency</strong>,
-        <strong class="text-[var(--fg)]">reliability</strong> and user experience. With a solid base in
+        Fullstack developer specialized in robust end-to-end architectures, with a focus on
+        <strong class="text-[var(--fg)]">performance</strong>,
+        <strong class="text-[var(--fg)]">scalability</strong> and
+        <strong class="text-[var(--fg)]">user experience</strong>. Passionate about
+        <strong class="text-[var(--fg)]">Artificial Intelligence</strong> — autonomous agents,
+        RAG pipelines and LLM systems in production — and the
+        <strong class="text-[var(--fg)]">Web3, blockchain and DeFi</strong> ecosystem.
+        With a solid base in
         <strong class="text-[var(--fg)]">TypeScript</strong>,
         <strong class="text-[var(--fg)]">Python</strong> and
-        <strong class="text-[var(--fg)]">Linux infrastructure</strong>, I design RAG pipelines,
-        LLM integrations and intelligent automation ready to scale.
+        <strong class="text-[var(--fg)]">Linux infrastructure</strong>, I build solutions that
+        combine technical reliability with innovation.
       </span>
     </p>
   </section>
@@ -96,14 +103,18 @@ import profilePic from "../assets/hero-photo-pixel.png";
       <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-baseline gap-y-2 sm:gap-x-3 sm:gap-y-2">
         <span class="font-pixel-label text-[10px] uppercase text-[var(--fg-muted)] sm:w-24 sm:shrink-0">Core</span>
         <div class="flex flex-wrap gap-2">
+          <span class="badge badge-core">TypeScript</span>
+          <span class="badge badge-core">JavaScript</span>
           <span class="badge badge-core">Node.js</span>
-          <span class="badge badge-core">FastAPI</span>
+          <span class="badge badge-core">Python</span>
         </div>
       </div>
       <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-baseline gap-y-2 sm:gap-x-3 sm:gap-y-2">
         <span class="font-pixel-label text-[10px] uppercase text-[var(--fg-muted)] sm:w-24 sm:shrink-0">Backend</span>
         <div class="flex flex-wrap gap-2">
           <span class="badge badge-backend">NestJS</span>
+          <span class="badge badge-backend">FastAPI</span>
+          <span class="badge badge-backend">Laravel</span>
           <span class="badge badge-backend">REST APIs</span>
           <span class="badge badge-backend">GraphQL</span>
           <span class="badge badge-backend">WebSockets</span>
@@ -118,19 +129,33 @@ import profilePic from "../assets/hero-photo-pixel.png";
         </div>
       </div>
       <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-baseline gap-y-2 sm:gap-x-3 sm:gap-y-2">
+        <span class="font-pixel-label text-[10px] uppercase text-[var(--fg-muted)] sm:w-24 sm:shrink-0">Web3</span>
+        <div class="flex flex-wrap gap-2">
+          <span class="badge badge-web3">Solidity</span>
+          <span class="badge badge-web3">ethers.js</span>
+          <span class="badge badge-web3">viem</span>
+          <span class="badge badge-web3">Smart Contracts</span>
+          <span class="badge badge-web3">DeFi Protocols</span>
+        </div>
+      </div>
+      <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-baseline gap-y-2 sm:gap-x-3 sm:gap-y-2">
         <span class="font-pixel-label text-[10px] uppercase text-[var(--fg-muted)] sm:w-24 sm:shrink-0">Infra</span>
         <div class="flex flex-wrap gap-2">
           <span class="badge badge-infra">Docker</span>
+          <span class="badge badge-infra">Linux</span>
           <span class="badge badge-infra">Bash</span>
           <span class="badge badge-infra">CI/CD</span>
+          <span class="badge badge-infra">Server Management</span>
         </div>
       </div>
       <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-baseline gap-y-2 sm:gap-x-3 sm:gap-y-2">
         <span class="font-pixel-label text-[10px] uppercase text-[var(--fg-muted)] sm:w-24 sm:shrink-0">Databases</span>
         <div class="flex flex-wrap gap-2">
           <span class="badge badge-db">PostgreSQL</span>
-          <span class="badge badge-db">pgvector</span>
+          <span class="badge badge-db">MariaDB</span>
+          <span class="badge badge-db">SQLite</span>
           <span class="badge badge-db">Redis</span>
+          <span class="badge badge-db">pgvector</span>
           <span class="badge badge-db">Qdrant</span>
         </div>
       </div>
@@ -140,6 +165,8 @@ import profilePic from "../assets/hero-photo-pixel.png";
           <span class="badge badge-emerging">AI Agents</span>
           <span class="badge badge-emerging">Evals</span>
           <span class="badge badge-emerging">Voice AI</span>
+          <span class="badge badge-emerging">Blockchain Bots</span>
+          <span class="badge badge-emerging">Trading Systems</span>
         </div>
       </div>
     </div>
@@ -155,29 +182,29 @@ import profilePic from "../assets/hero-photo-pixel.png";
     </h2>
     <ul class="notion-list">
       <li x-show="language === 'es'">
-        <strong>Agentes Autónomos &amp; LLM Ops</strong> — Orquestación multi-agente, tool-calling y evaluación continua en producción.
+        <strong>Agentes Autónomos &amp; Sistemas LLM</strong> — Orquestación multi-agente, tool-calling, pipelines RAG y evaluación continua en producción.
       </li>
       <li x-show="language === 'es'">
-        <strong>Sistemas RAG &amp; Búsqueda Semántica</strong> — Indexación vectorial, chunking híbrido y recuperación de baja latencia.
+        <strong>Web3 &amp; Blockchain</strong> — Integración de wallets, protocolos DeFi y bots de trading automatizados.
       </li>
       <li x-show="language === 'es'">
         <strong>Arquitecturas Backend Escalables</strong> — Microservicios en TypeScript y Python, colas de eventos y APIs robustas.
       </li>
       <li x-show="language === 'es'">
-        <strong>Infraestructura Linux &amp; Despliegues</strong> — Contenedores Docker, automatización en Bash y observabilidad de modelos.
+        <strong>Infraestructura Linux &amp; Despliegues</strong> — Contenedores Docker, automatización en Bash y observabilidad en producción.
       </li>
 
       <li x-show="language === 'en'">
-        <strong>Autonomous Agents &amp; LLM Ops</strong> — Multi-agent orchestration, tool-calling and continuous evaluation in production.
+        <strong>Autonomous Agents &amp; LLM Systems</strong> — Multi-agent orchestration, tool-calling, RAG pipelines and continuous evaluation in production.
       </li>
       <li x-show="language === 'en'">
-        <strong>RAG Systems &amp; Semantic Search</strong> — Vector indexing, hybrid chunking and low-latency retrieval.
+        <strong>Web3 &amp; Blockchain</strong> — Wallet integrations, DeFi protocols and automated trading bots.
       </li>
       <li x-show="language === 'en'">
         <strong>Scalable Backend Architectures</strong> — TypeScript and Python microservices, event queues and robust APIs.
       </li>
       <li x-show="language === 'en'">
-        <strong>Linux Infrastructure &amp; Deploys</strong> — Docker containers, Bash automation and model observability.
+        <strong>Linux Infrastructure &amp; Deploys</strong> — Docker containers, Bash automation and production observability.
       </li>
     </ul>
   </section>
